@@ -639,22 +639,6 @@ export function createApp({
         }
         return json(res, 200, { imported, skipped });
       }
-      if (path === '/api/backup' && req.method === 'GET') {
-        const user = teacher(req);
-        return json(res, 200, {
-          app: 'CEP Online Showcase',
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          schools: db
-            .prepare(
-              `SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1'} ORDER BY name`
-            )
-            .all(...(user.schoolId ? [user.schoolId] : [])),
-          projects: db
-            .prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''}`)
-            .all(...(user.schoolId ? [user.schoolId] : []))
-        });
-      }
       fail(404, 'Endpoint not found.');
     } catch (error) {
       if (!(error instanceof HttpError)) console.error('Request failed:', error);

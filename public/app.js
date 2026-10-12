@@ -67,14 +67,6 @@ function stats(id, values) {
     )
     .join('');
 }
-function download(name, value, mime = 'application/json') {
-  const url = URL.createObjectURL(new Blob([value], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 async function refreshShowcase() {
   try {
     showcase = await api('/api/showcase');
@@ -665,14 +657,6 @@ $('class-form').addEventListener('submit', (e) => {
     },
     'class-message'
   );
-});
-$('export-data').addEventListener('click', async () => {
-  try {
-    const data = await api('/api/backup');
-    download('CEP-project-records.json', JSON.stringify(data, null, 2));
-  } catch (error) {
-    message('workspace-message', error.message, true);
-  }
 });
 $('import-form').addEventListener('submit', (e) => {
   e.preventDefault();

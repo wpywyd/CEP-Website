@@ -127,7 +127,7 @@ test('registration stores a private full name and salted password, not plaintext
   const publicData = await f.request('/api/showcase');
   assert.equal(JSON.stringify(publicData.data).includes('Alex Tan'), false);
   assert.equal((await f.request('/api/students')).status, 401);
-  assert.equal((await f.request('/api/backup', 'GET', null, r.cookie)).status, 401);
+  assert.equal((await f.request('/api/backup', 'GET', null, r.cookie)).status, 404);
 });
 
 test('registration and management expose the Singapore secondary-school directory without legacy placeholders', async (t) => {

@@ -32,8 +32,6 @@ The server defaults to port 3000 and binds to loopback. The public site is at `h
 
 Export JSON from the original offline portal, then upload it under **Schools & import**. Imports are transactional, restricted to the teacher's school scope, and skip previously imported IDs. A school teacher should use a school-specific backup; an all-school administrator can import the full master backup. Offline votes, voter codes and thumbnails are not imported. Students must register online; each project uses the included original SVG artwork until a separate image-upload feature is added.
 
-**Export project records** provides a scoped JSON export of project records. It is not a complete database backup and does not include student accounts, password hashes or voting history.
-
 ## Tests
 
 ```sh
