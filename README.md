@@ -13,7 +13,7 @@ npm run teacher -- school1.teacher school-1
 npm start
 ```
 
-Teacher creation prompts for a hidden password of at least 12 characters. Running the command again changes that account's password and access scope and revokes existing sessions. `admin` means programme-wide access; `school-1` through `school-9` limit a teacher to that school. The command supports a securely supplied `TEACHER_PASSWORD` for noninteractive provisioning; do not put passwords in shell history, source files, or command arguments.
+Teacher creation prompts for a hidden password containing 8–128 characters, at least one letter and at least one number; symbols are optional. Running the command again changes that account's password and access scope and revokes existing sessions. `admin` means programme-wide access; `school-1` through `school-9` limit a teacher to that school. The command supports a securely supplied `TEACHER_PASSWORD` for noninteractive provisioning; do not put passwords in shell history, source files, or command arguments.
 
 The server defaults to port 3000 and binds to loopback. Use the **Teacher workspace** to sign in, set real school names, add each school's real classes under **Schools & import**, and create projects. Set a project to **Published** to show it publicly and make it available for voting. A fresh database has nine placeholder schools, an open initial voting round, no classes, no accounts, and no sample projects. Students cannot register until their school has classes configured.
 

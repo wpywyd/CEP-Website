@@ -16,7 +16,7 @@ if (!password) {
   const output = new Writable({ write(chunk, encoding, done) { if (!mute) process.stdout.write(chunk, encoding); done(); } });
   output.isTTY = true;
   const rl = createInterface({ input: process.stdin, output, terminal: true });
-  process.stdout.write('New password (at least 12 characters): ');
+  process.stdout.write('New password (8+ characters, including a letter and number): ');
   mute = true;
   password = await rl.question('');
   mute = false;

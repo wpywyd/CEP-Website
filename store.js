@@ -15,6 +15,12 @@ export function passwordMatches(password, encoded) {
   const actual = scryptSync(password, salt, 64);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
+export function validateNewPassword(password) {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128 || !/\p{L}/u.test(password) || !/\p{N}/u.test(password)) {
+    throw new Error('Use 8–128 characters with at least one letter and one number. Symbols are optional.');
+  }
+  return password;
+}
 export function openStore(filename) {
   process.umask(0o077);
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true, mode: 0o700 });
@@ -66,7 +72,7 @@ export function openStore(filename) {
 }
 export function provisionTeacher(db, username, password, schoolId = null) {
   if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('Username must be 3–64 lowercase letters, numbers, dots, underscores or hyphens.');
-  if (password.length < 12 || password.length > 256) throw new Error('Use a password between 12 and 256 characters.');
+  validateNewPassword(password);
   if (schoolId && !db.prepare('SELECT id FROM schools WHERE id=?').get(schoolId)) throw new Error('Unknown school.');
   const existing = db.prepare('SELECT id FROM teachers WHERE username=?').get(username);
   const id = existing?.id || randomBytes(16).toString('hex');

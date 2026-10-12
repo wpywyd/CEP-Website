@@ -60,11 +60,12 @@ test('normalised school + class + name is unique, including concurrent registrat
 
 test('registration validates school/class, full-name confirmation, username and password', async t => {
   const f = await fixture(t); const other = await f.class('school-2');
-  for (const overrides of [{ classId: other.id }, { fullName: 'Student123' }, { fullName: '<script>' }, { fullNameConfirmed: false }, { username: 'a' }, { password: 'short' }, { classId: 'invented' }]) {
+  for (const overrides of [{ classId: other.id }, { fullName: 'Student123' }, { fullName: '<script>' }, { fullNameConfirmed: false }, { username: 'a' }, { password: 'short' }, { password: 'abcdefgh' }, { password: '12345678' }, { classId: 'invented' }]) {
     assert.equal((await f.register(overrides)).status, 400);
   }
   assert.equal((await f.register({ fullName: '李小明', username: 'student.li' })).status, 201);
   assert.equal((await f.register({ fullName: 'Madonna', username: 'student.one' })).status, 201);
+  assert.equal((await f.register({ fullName: 'Sam Lee', username: 'student.standard', password: 'Abcdefg1' })).status, 201);
   assert.equal((await f.request('/api/registration')).data.classes.length, 2);
 });
 
@@ -104,12 +105,12 @@ test('teacher school permissions protect student data, projects, classes and pas
   assert.equal((await f.request('/api/students', 'GET', null, teacher1)).data.students.length, 1);
   assert.equal((await f.request('/api/students', 'GET', null, teacher2)).data.students.length, 0);
   assert.equal((await f.request('/api/students', 'GET', null, r.cookie)).status, 401);
-  assert.equal((await f.request(`/api/students/${id}/password`, 'PUT', { password: 'Different long password!' }, teacher2)).status, 403);
+  assert.equal((await f.request(`/api/students/${id}/password`, 'PUT', { password: 'Different password 1!' }, teacher2)).status, 403);
   assert.equal((await f.request('/api/classes', 'POST', { schoolId: 'school-1', name: '5C' }, teacher2)).status, 403);
   assert.equal((await f.request('/api/round/close', 'POST', {}, teacher1)).status, 403);
   const p = await f.project(); assert.equal((await f.request(`/api/projects/${p.id}`, 'DELETE', { revision: p.revision }, teacher2)).status, 403);
   const publicProject = (await f.request('/api/showcase')).data.projects[0]; assert.equal('trainerFeedback' in publicProject, false);
-  const newPassword = 'Different long password!';
+  const newPassword = 'Different password 1!';
   assert.equal((await f.request(`/api/students/${id}/password`, 'PUT', { password: newPassword }, teacher1)).status, 200);
   assert.equal((await f.request('/api/voter', 'GET', null, r.cookie)).status, 401);
   assert.equal((await f.request('/api/students/login', 'POST', { username: 'alex.tan', password: PASSWORD })).status, 401);

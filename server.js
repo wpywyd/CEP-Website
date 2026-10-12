@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { openStore, hash, passwordHash, passwordMatches, STATUSES, normaliseIdentity, displayName } from './store.js';
+import { openStore, hash, passwordHash, passwordMatches, validateNewPassword, STATUSES, normaliseIdentity, displayName } from './store.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -68,8 +68,12 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
     studentCookie(res, token);
   }
   const latestRound = () => db.prepare('SELECT id, name, is_open AS isOpen FROM voting_rounds ORDER BY is_open DESC, created_at DESC, rowid DESC LIMIT 1').get();
-  function passwordValue(value) {
-    if (typeof value !== 'string' || value.length < 12 || value.length > 256) fail(400, 'Use a password between 12 and 256 characters.');
+  function passwordValue(value, isNew = true) {
+    if (typeof value !== 'string' || !value.length || value.length > 256) fail(400, 'Enter a valid password.');
+    if (isNew) {
+      try { validateNewPassword(value); }
+      catch (error) { fail(400, error.message); }
+    }
     return value;
   }
   const json = (res, status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)); };
@@ -111,7 +115,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       if (path === '/api/login' && req.method === 'POST') {
         limit(`login:${ip}`, 20, 15 * 60_000);
         const input = await body(req);
-        const username = text(input.username, 64, true).toLowerCase(); const password = passwordValue(input.password);
+        const username = text(input.username, 64, true).toLowerCase(); const password = passwordValue(input.password, false);
         const user = db.prepare('SELECT * FROM teachers WHERE username=?').get(username);
         const valid = passwordMatches(password, user?.password_hash || dummyHash);
         if (!user || !valid) fail(401, 'Username or password is incorrect.');
@@ -190,7 +194,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
         limit(`student-login:${ip}`, 300, 15 * 60_000);
         limit(`student-account:${hash(username)}`, 15, 15 * 60_000);
         const user = db.prepare('SELECT * FROM students WHERE username=?').get(username);
-        const valid = passwordMatches(passwordValue(input.password), user?.password_hash || dummyHash);
+        const valid = passwordMatches(passwordValue(input.password, false), user?.password_hash || dummyHash);
         if (!user || !valid) fail(401, 'Username or password is incorrect.');
         startStudentSession(res, user.id); return json(res, 200, { ok: true });
       }
