@@ -116,12 +116,39 @@ function renderRecords() {
   const projects = management.projects.filter(p => (!status || p.status === status) && `${p.gameTitle} ${p.teamName}`.toLowerCase().includes(query));
   $('manage-projects').innerHTML = projects.length ? projects.map(p => `<article class="record"><div><span class="tag">${escape(p.status)}</span><h3>${escape(p.gameTitle)}</h3><p>${escape(schoolName(p.schoolId))} · ${escape(p.teamName)}</p><p>Session ${p.currentSession}/8 · ${p.progress}% complete · ${p.votes} votes</p></div><div class="record-actions"><button class="button secondary" data-edit="${p.id}">Edit</button><button class="button danger" data-delete="${p.id}">Delete</button></div></article>`).join('') : '<div class="empty">No project records. Add your first project to get started.</div>';
 }
+function renderProjectSchoolChoices() {
+  const input = $('project-school-search');
+  const query = input.value.trim().toLocaleLowerCase('en-SG');
+  const schools = (management?.schools || [])
+    .filter(school => school.isActive !== 0 && (!query || school.name.toLocaleLowerCase('en-SG').startsWith(query)))
+    .slice(0, 50);
+  const results = $('project-school-results');
+  results.innerHTML = schools.length
+    ? schools.map(school => `<button type="button" class="combobox-option" role="option" data-school-choice="${escape(school.id)}">${escape(school.name)}</button>`).join('')
+    : '<div class="combobox-empty">No school starts with those letters.</div>';
+  results.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+}
+
+function chooseProjectSchool(id) {
+  const school = management?.schools.find(item => item.id === id && item.isActive !== 0);
+  if (!school) return;
+  const form = $('project-form');
+  form.elements.schoolId.value = school.id;
+  $('project-school-search').value = school.name;
+  $('project-school-results').hidden = true;
+  $('project-school-search').setAttribute('aria-expanded', 'false');
+}
+
 function openEditor(id = null) {
   editing = id ? management.projects.find(p => p.id === id) : null;
   const form = $('project-form'); form.reset();
   $('editor-title').textContent = editing ? 'Edit project' : 'Add a project';
-  form.elements.schoolId.innerHTML = options(management.schools, editing?.schoolId);
-  form.elements.schoolId.disabled = Boolean(editing);
+  form.elements.schoolId.value = editing?.schoolId || '';
+  $('project-school-search').value = editing ? schoolName(editing.schoolId) : '';
+  $('project-school-search').disabled = Boolean(editing);
+  $('project-school-results').hidden = true;
+  $('project-school-search').setAttribute('aria-expanded', 'false');
   form.elements.status.innerHTML = management.statuses.map(s => `<option>${escape(s)}</option>`).join('');
   if (editing) for (const field of ['schoolId', 'teamName', 'gameTitle', 'learningTopic', 'description', 'makecodeUrl', 'status', 'currentSession', 'progress', 'trainerFeedback']) form.elements[field].value = editing[field];
   message('editor-message'); $('editor').showModal();
@@ -192,6 +219,35 @@ $('logout').addEventListener('click', async () => {
 });
 $('manage-search').addEventListener('input', renderRecords); $('manage-status').addEventListener('change', renderRecords);
 $('new-project').addEventListener('click', () => openEditor()); $('close-editor').addEventListener('click', () => $('editor').close());
+$('project-school-search').addEventListener('input', () => {
+  $('project-form').elements.schoolId.value = '';
+  renderProjectSchoolChoices();
+});
+$('project-school-search').addEventListener('focus', renderProjectSchoolChoices);
+$('project-school-search').addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    $('project-school-results').hidden = true;
+    event.currentTarget.setAttribute('aria-expanded', 'false');
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    $('project-school-results').querySelector('.combobox-option')?.focus();
+  }
+});
+$('project-school-results').addEventListener('click', event => {
+  const option = event.target.closest('[data-school-choice]');
+  if (option) chooseProjectSchool(option.dataset.schoolChoice);
+});
+$('project-school-results').addEventListener('keydown', event => {
+  if (!event.target.matches('.combobox-option')) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const choices = [...$('project-school-results').querySelectorAll('.combobox-option')];
+    const offset = event.key === 'ArrowDown' ? 1 : -1;
+    choices[(choices.indexOf(event.target) + offset + choices.length) % choices.length]?.focus();
+  }
+  if (event.key === 'Escape') $('project-school-search').focus();
+});
 $('manage-projects').addEventListener('click', async e => {
   const edit = e.target.closest('[data-edit]'); if (edit) return openEditor(edit.dataset.edit);
   const remove = e.target.closest('[data-delete]'); if (!remove) return;
@@ -201,6 +257,7 @@ $('manage-projects').addEventListener('click', async e => {
 });
 $('project-form').addEventListener('submit', e => { e.preventDefault(); busy(e.currentTarget, async () => {
   const form = $('project-form'); const input = Object.fromEntries(new FormData(form));
+  if (!form.elements.schoolId.value) throw new Error('Choose a school from the matching search results.');
   input.schoolId = form.elements.schoolId.value; input.progress = Number(input.progress); input.currentSession = Number(input.currentSession); delete input.privacy;
   if (editing) input.revision = editing.revision;
   await api(editing ? `/api/projects/${editing.id}` : '/api/projects', editing ? 'PUT' : 'POST', input);

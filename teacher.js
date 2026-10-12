@@ -5,7 +5,7 @@ import { Writable } from 'node:stream';
 
 const [username, scope] = process.argv.slice(2);
 if (!username || !scope) {
-  console.error('Usage: npm run teacher -- <username> <school-1 … school-9 | admin>');
+  console.error('Usage: npm run teacher -- <username> <school ID | exact school name | admin>');
   console.error('Interactive password input is hidden. For automation, supply TEACHER_PASSWORD securely.');
   process.exit(1);
 }
@@ -25,7 +25,9 @@ if (!password) {
 }
 const db = openStore(resolve(process.env.DATA_DIR || 'data', 'portal.sqlite'));
 try {
-  provisionTeacher(db, username, password, scope === 'admin' ? null : scope);
-  console.log(`Account ${username} saved with ${scope === 'admin' ? 'all-school administrator' : scope} access. Existing sessions were revoked.`);
+  const school = scope === 'admin' ? null : db.prepare('SELECT id, name FROM schools WHERE is_active=1 AND (id=? OR lower(name)=lower(?))').get(scope, scope);
+  if (scope !== 'admin' && !school) throw new Error('Unknown school. Use its exact name from the website or its sg- school ID.');
+  provisionTeacher(db, username, password, school?.id || null);
+  console.log(`Account ${username} saved with ${school ? school.name : 'all-school administrator'} access. Existing sessions were revoked.`);
 } catch (error) { console.error(error.message); process.exitCode = 1; }
 finally { db.close(); }

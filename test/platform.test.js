@@ -7,8 +7,11 @@ import { execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../server.js';
 import { provisionTeacher } from '../store.js';
+import { SECONDARY_SCHOOLS } from '../school-directory.js';
 
 const PASSWORD = 'Long test password 42!';
+const SCHOOL_1 = 'sg-admiralty-secondary-school';
+const SCHOOL_2 = 'sg-ahmad-ibrahim-secondary-school';
 async function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cep-test-'));
   const database = join(dir, 'portal.sqlite');
@@ -17,8 +20,8 @@ async function fixture(t) {
   await listen();
   t.after(async () => { await new Promise(resolve => app.server.close(resolve)); app.db.close(); rmSync(dir, { recursive: true, force: true }); });
   provisionTeacher(app.db, 'admin', PASSWORD);
-  provisionTeacher(app.db, 'teacher1', PASSWORD, 'school-1');
-  provisionTeacher(app.db, 'teacher2', PASSWORD, 'school-2');
+  provisionTeacher(app.db, 'teacher1', PASSWORD, SCHOOL_1);
+  provisionTeacher(app.db, 'teacher2', PASSWORD, SCHOOL_2);
   const f = {
     dir,
     get db() { return app.db; },
@@ -28,12 +31,12 @@ async function fixture(t) {
       return { status: r.status, data: await r.json(), cookie: r.headers.get('set-cookie')?.split(';')[0], headers: r.headers };
     },
     async login(username = 'admin') { const r = await this.request('/api/login', 'POST', { username, password: PASSWORD }); assert.equal(r.status, 200); return r.cookie; },
-    async class(schoolId = 'school-1', name = 'Primary 5A') { const r = await this.request('/api/classes', 'POST', { schoolId, name }, this.admin); assert.equal(r.status, 201); return r.data; },
-    async project(schoolId = 'school-1', title = 'Learning Game', status = 'Published') {
+    async class(schoolId = SCHOOL_1, name = 'Secondary 1A') { const r = await this.request('/api/classes', 'POST', { schoolId, name }, this.admin); assert.equal(r.status, 201); return r.data; },
+    async project(schoolId = SCHOOL_1, title = 'Learning Game', status = 'Published') {
       const r = await this.request('/api/projects', 'POST', { schoolId, gameTitle: title, teamName: 'Team A', learningTopic: 'Math', description: 'Learn by playing.', makecodeUrl: 'https://arcade.makecode.com/', status, progress: 100, currentSession: 8, trainerFeedback: 'PRIVATE FEEDBACK' }, this.admin);
       assert.equal(r.status, 201); return r.data;
     },
-    async register(overrides = {}) { return this.request('/api/students/register', 'POST', { schoolId: 'school-1', classId: this.class1.id, fullName: 'Alex Tan', username: 'alex.tan', password: PASSWORD, fullNameConfirmed: true, ...overrides }); },
+    async register(overrides = {}) { return this.request('/api/students/register', 'POST', { schoolId: SCHOOL_1, classId: this.class1.id, fullName: 'Alex Tan', username: 'alex.tan', password: PASSWORD, fullNameConfirmed: true, ...overrides }); },
     async restart() { await new Promise(resolve => app.server.close(resolve)); app.db.close(); app = createApp({ database, secureCookies: false }); await listen(); }
   };
   f.admin = await f.login(); f.class1 = await f.class(); return f;
@@ -48,18 +51,30 @@ test('registration stores a private full name and salted password, not plaintext
   assert.equal((await f.request('/api/students')).status, 401); assert.equal((await f.request('/api/backup', 'GET', null, r.cookie)).status, 401);
 });
 
+test('registration and management expose the Singapore secondary-school directory without legacy placeholders', async t => {
+  const f = await fixture(t);
+  const registration = await f.request('/api/registration');
+  assert.equal(registration.status, 200);
+  assert.equal(registration.data.schools.length, SECONDARY_SCHOOLS.length);
+  assert.deepEqual(registration.data.schools.map(school => school.name), [...SECONDARY_SCHOOLS].map(school => school.name).sort());
+  assert.equal(registration.data.schools.some(school => /^School [1-9]$/.test(school.name)), false);
+  assert.ok(registration.data.schools.some(school => school.name === 'Beatty Secondary School'));
+  const management = await f.request('/api/manage', 'GET', null, f.admin);
+  assert.equal(management.data.schools.filter(school => school.isActive).length, SECONDARY_SCHOOLS.length);
+});
+
 test('normalised school + class + name is unique, including concurrent registrations', async t => {
   const f = await fixture(t);
   const attempts = await Promise.all([f.register(), f.register({ fullName: ' ALEX  TAN ', username: 'another.user' })]);
   assert.deepEqual(attempts.map(r => r.status).sort(), [201, 409]);
   const unicode = await f.register({ fullName: 'Ａｌｅｘ Ｔａｎ', username: 'unicode.user' }); assert.equal(unicode.status, 409);
   assert.equal(f.db.prepare('SELECT count(*) AS count FROM students').get().count, 1);
-  const class2 = await f.class('school-1', 'Primary 5B'); assert.equal((await f.register({ classId: class2.id, username: 'other.class' })).status, 201);
-  const otherSchool = await f.class('school-2', 'Primary 5A'); assert.equal((await f.register({ schoolId: 'school-2', classId: otherSchool.id, username: 'other.school' })).status, 201);
+  const class2 = await f.class(SCHOOL_1, 'Secondary 1B'); assert.equal((await f.register({ classId: class2.id, username: 'other.class' })).status, 201);
+  const otherSchool = await f.class(SCHOOL_2, 'Secondary 1A'); assert.equal((await f.register({ schoolId: SCHOOL_2, classId: otherSchool.id, username: 'other.school' })).status, 201);
 });
 
 test('registration validates school/class, full-name confirmation, username and password', async t => {
-  const f = await fixture(t); const other = await f.class('school-2');
+  const f = await fixture(t); const other = await f.class(SCHOOL_2);
   for (const overrides of [{ classId: other.id }, { fullName: 'Student123' }, { fullName: '<script>' }, { fullNameConfirmed: false }, { username: 'a' }, { password: 'short' }, { password: 'abcdefgh' }, { password: '12345678' }, { classId: 'invented' }]) {
     assert.equal((await f.register(overrides)).status, 400);
   }
@@ -70,7 +85,7 @@ test('registration validates school/class, full-name confirmation, username and 
 });
 
 test('a vote is final across devices and concurrent requests; new rounds permit one new vote', async t => {
-  const f = await fixture(t); const a = await f.project(); const b = await f.project('school-2', 'Second Game');
+  const f = await fixture(t); const a = await f.project(); const b = await f.project(SCHOOL_2, 'Second Game');
   const registered = await f.register(); const cookie = registered.cookie;
   const info = await f.request('/api/voter', 'GET', null, cookie); const roundId = info.data.round.id;
   const votes = await Promise.all([f.request('/api/vote', 'POST', { projectId: a.id, roundId }, cookie), f.request('/api/vote', 'POST', { projectId: b.id, roundId }, cookie)]);
@@ -90,7 +105,7 @@ test('a vote is final across devices and concurrent requests; new rounds permit 
 });
 
 test('anonymous votes, unpublished projects, foreign origins and old code routes are rejected', async t => {
-  const f = await fixture(t); const draft = await f.project('school-1', 'Draft', 'In progress'); const student = await f.register();
+  const f = await fixture(t); const draft = await f.project(SCHOOL_1, 'Draft', 'In progress'); const student = await f.register();
   assert.equal((await f.request('/api/vote', 'POST', { projectId: draft.id, roundId: 'round-1' })).status, 401);
   assert.equal((await f.request('/api/vote', 'POST', { projectId: draft.id, roundId: 'round-1' }, student.cookie)).status, 400);
   assert.equal((await f.request('/api/students/register', 'POST', {}, '', { Origin: 'https://foreign.example' })).status, 403);
@@ -106,7 +121,7 @@ test('teacher school permissions protect student data, projects, classes and pas
   assert.equal((await f.request('/api/students', 'GET', null, teacher2)).data.students.length, 0);
   assert.equal((await f.request('/api/students', 'GET', null, r.cookie)).status, 401);
   assert.equal((await f.request(`/api/students/${id}/password`, 'PUT', { password: 'Different password 1!' }, teacher2)).status, 403);
-  assert.equal((await f.request('/api/classes', 'POST', { schoolId: 'school-1', name: '5C' }, teacher2)).status, 403);
+  assert.equal((await f.request('/api/classes', 'POST', { schoolId: SCHOOL_1, name: 'Secondary 1C' }, teacher2)).status, 403);
   assert.equal((await f.request('/api/round/close', 'POST', {}, teacher1)).status, 403);
   const p = await f.project(); assert.equal((await f.request(`/api/projects/${p.id}`, 'DELETE', { revision: p.revision }, teacher2)).status, 403);
   const publicProject = (await f.request('/api/showcase')).data.projects[0]; assert.equal('trainerFeedback' in publicProject, false);

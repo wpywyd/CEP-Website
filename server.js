@@ -95,7 +95,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       const path = new URL(req.url, 'http://localhost').pathname;
       if (!path.startsWith('/api/')) {
         if (req.method !== 'GET' && req.method !== 'HEAD') fail(405, 'Method not allowed.');
-        const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'], '/artwork.svg': ['artwork.svg', 'image/svg+xml'] };
+        const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'], '/school-search.css': ['school-search.css', 'text/css'], '/artwork.svg': ['artwork.svg', 'image/svg+xml'] };
         const file = files[path]; if (!file) fail(404, 'Page not found.');
         const content = await readFile(resolve(root, 'public', file[0]));
         res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` }); res.end(req.method === 'HEAD' ? undefined : content); return;
@@ -110,7 +110,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       if (path === '/api/health' && req.method === 'GET') { db.prepare('SELECT 1').get(); return json(res, 200, { ok: true }); }
       if (path === '/api/showcase' && req.method === 'GET') {
         const projects = db.prepare(`${projectSelect} WHERE p.status='Published' ORDER BY votes DESC, p.game_title`).all().map(({ trainerFeedback, revision, ...p }) => p);
-        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools').all(), projects, round: latestRound() });
+        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 OR id IN (SELECT school_id FROM projects) ORDER BY name').all(), projects, round: latestRound() });
       }
       if (path === '/api/login' && req.method === 'POST') {
         limit(`login:${ip}`, 20, 15 * 60_000);
@@ -135,11 +135,11 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       if (path === '/api/manage' && req.method === 'GET') {
         const user = teacher(req);
         const projects = db.prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''} ORDER BY p.updated_at DESC`).all(...(user.schoolId ? [user.schoolId] : []));
-        return json(res, 200, { user, statuses: STATUSES, schools: db.prepare(`SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ''}`).all(...(user.schoolId ? [user.schoolId] : [])), projects });
+        return json(res, 200, { user, statuses: STATUSES, schools: db.prepare(`SELECT id, name, short_name AS shortName, is_active AS isActive FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1 OR id IN (SELECT school_id FROM projects)'} ORDER BY name`).all(...(user.schoolId ? [user.schoolId] : [])), projects });
       }
       if (path === '/api/projects' && req.method === 'POST') {
         const user = teacher(req); const p = projectInput(await body(req)); canManage(user, p.schoolId);
-        if (!db.prepare('SELECT id FROM schools WHERE id=?').get(p.schoolId)) fail(400, 'Unknown school.');
+        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId)) fail(400, 'Unknown or inactive school.');
         const id = randomBytes(16).toString('hex');
         db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)').run(id, p.schoolId, p.teamName, p.gameTitle, p.learningTopic, p.description, p.makecodeUrl, p.status, p.progress, p.currentSession, p.trainerFeedback, new Date().toISOString());
         return json(res, 201, getProject(id));
@@ -155,14 +155,14 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
         db.prepare('UPDATE projects SET team_name=?, game_title=?, learning_topic=?, description=?, makecode_url=?, status=?, progress=?, current_session=?, trainer_feedback=?, updated_at=?, revision=revision+1 WHERE id=?').run(p.teamName, p.gameTitle, p.learningTopic, p.description, p.makecodeUrl, p.status, p.progress, p.currentSession, p.trainerFeedback, new Date().toISOString(), existing.id);
         return json(res, 200, getProject(existing.id));
       }
-      const schoolRoute = /^\/api\/schools\/(school-[1-9])$/.exec(path);
+      const schoolRoute = /^\/api\/schools\/(sg-[a-z0-9-]+|school-[1-9])$/.exec(path);
       if (schoolRoute && req.method === 'PUT') {
         const user = teacher(req); canManage(user, schoolRoute[1]); const input = await body(req);
         db.prepare('UPDATE schools SET name=?, short_name=? WHERE id=?').run(text(input.name, 120, true), text(input.shortName, 8, true), schoolRoute[1]);
         return json(res, 200, { ok: true });
       }
       if (path === '/api/registration' && req.method === 'GET') {
-        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools').all(), classes: db.prepare('SELECT id, school_id AS schoolId, name FROM classes ORDER BY name').all() });
+        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 ORDER BY name').all(), classes: db.prepare('SELECT c.id, c.school_id AS schoolId, c.name FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.is_active=1 ORDER BY c.name').all() });
       }
       if (path === '/api/students/register' && req.method === 'POST') {
         limit(`register:${ip}`, 120, 60 * 60_000);
@@ -226,7 +226,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       }
       if (path === '/api/classes' && req.method === 'POST') {
         const user = teacher(req); const input = await body(req); const schoolId = text(input.schoolId, 80, true); canManage(user, schoolId);
-        if (!db.prepare('SELECT id FROM schools WHERE id=?').get(schoolId)) fail(400, 'Unknown school.');
+        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId)) fail(400, 'Unknown or inactive school.');
         const name = displayName(text(input.name, 80, true)); const key = normaliseIdentity(name);
         if (db.prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?').get(schoolId, key)) fail(409, 'That class already exists in this school.');
         const id = randomBytes(16).toString('hex'); db.prepare('INSERT INTO classes VALUES (?, ?, ?, ?)').run(id, schoolId, name, key);
@@ -259,7 +259,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
         const user = teacher(req); const input = await body(req, 2_000_000);
         if (!Array.isArray(input.projects) || input.projects.length > 2000) fail(400, 'Upload a project backup with at most 2,000 records.');
         const prepared = input.projects.map(raw => ({ originalId: text(raw.id, 120, true), ...projectInput(raw) }));
-        for (const p of prepared) { canManage(user, p.schoolId); if (!db.prepare('SELECT id FROM schools WHERE id=?').get(p.schoolId)) fail(400, 'Unknown school in backup.'); }
+        for (const p of prepared) { canManage(user, p.schoolId); if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId)) fail(400, 'Unknown or inactive school in backup.'); }
         let imported = 0; let skipped = 0;
         db.exec('CREATE TABLE IF NOT EXISTS import_ids (original_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE)');
         db.exec('BEGIN');
@@ -276,7 +276,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
       }
       if (path === '/api/backup' && req.method === 'GET') {
         const user = teacher(req);
-        return json(res, 200, { app: 'CEP Online Showcase', version: 1, exportedAt: new Date().toISOString(), schools: db.prepare(`SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ''}`).all(...(user.schoolId ? [user.schoolId] : [])), projects: db.prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''}`).all(...(user.schoolId ? [user.schoolId] : [])) });
+        return json(res, 200, { app: 'CEP Online Showcase', version: 1, exportedAt: new Date().toISOString(), schools: db.prepare(`SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1'} ORDER BY name`).all(...(user.schoolId ? [user.schoolId] : [])), projects: db.prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''}`).all(...(user.schoolId ? [user.schoolId] : [])) });
       }
       fail(404, 'Endpoint not found.');
     } catch (error) {

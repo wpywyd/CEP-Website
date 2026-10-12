@@ -1,0 +1,45 @@
+.school-combobox {
+  position: relative;
+}
+
+.school-combobox input[type="search"] {
+  padding-right: 34px;
+}
+
+.combobox-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow: auto;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #9fb5aa;
+  border-radius: 10px;
+  box-shadow: 0 14px 30px #102a4326;
+}
+
+.combobox-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--ink);
+  text-align: left;
+  background: #fff;
+  border: 0;
+  border-radius: 7px;
+}
+
+.combobox-option:hover,
+.combobox-option:focus {
+  background: #e1f2ec;
+  outline: none;
+}
+
+.combobox-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}

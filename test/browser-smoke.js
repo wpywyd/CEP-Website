@@ -9,6 +9,7 @@ import { provisionTeacher } from '../store.js';
 const dir = mkdtempSync(join(tmpdir(), 'cep-browser-'));
 const { server, db } = createApp({ database: join(dir, 'portal.sqlite'), secureCookies: false });
 const password = 'Browser test password 42!';
+const schoolId = 'sg-admiralty-secondary-school';
 provisionTeacher(db, 'admin', password);
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -24,9 +25,17 @@ try {
   await teacher.locator('#login-form [name="password"]').fill(password);
   await teacher.locator('#login-form button[type="submit"]').click(); await teacher.locator('#workspace').waitFor({ state: 'visible' });
   await teacher.locator('[data-tab="schools"]').click();
-  await teacher.locator('#class-school').selectOption('school-1'); await teacher.locator('#class-form [name="name"]').fill('Primary 5A');
-  await teacher.locator('#class-form button[type="submit"]').click(); await teacher.locator('#classes-list').getByText('School 1 · Primary 5A').waitFor();
+  await teacher.locator('#class-school').selectOption(schoolId); await teacher.locator('#class-form [name="name"]').fill('Secondary 1A');
+  await teacher.locator('#class-form button[type="submit"]').click(); await teacher.locator('#classes-list').getByText('Admiralty Secondary School · Secondary 1A').waitFor();
   await teacher.locator('[data-tab="manage"]').click(); await teacher.locator('#new-project').click();
+  await teacher.locator('#project-school-search').fill('be');
+  const matches = await teacher.locator('#project-school-results .combobox-option').allTextContents();
+  assert.ok(matches.includes('Beatty Secondary School'));
+  assert.ok(matches.every(name => name.toLowerCase().startsWith('be')));
+  await teacher.locator('#project-school-search').fill('Be');
+  assert.deepEqual(await teacher.locator('#project-school-results .combobox-option').allTextContents(), matches);
+  await teacher.locator('#project-school-search').fill('ad');
+  await teacher.getByRole('option', { name: 'Admiralty Secondary School' }).click();
   await teacher.locator('#project-form [name="teamName"]').fill('Team Alpha');
   await teacher.locator('#project-form [name="gameTitle"]').fill('Learning Adventure');
   await teacher.locator('#project-form [name="learningTopic"]').fill('Science');
@@ -38,8 +47,8 @@ try {
   await teacher.locator('#manage-projects h3').getByText('Learning Adventure').waitFor();
   const studentContext = await browser.newContext(); const student = await studentContext.newPage(); inspect(student);
   await student.goto(`${origin}/#vote`); await student.locator('#show-register').click();
-  await student.locator('#register-school').selectOption('school-1');
-  await student.locator('#register-class').selectOption({ label: 'Primary 5A' });
+  await student.locator('#register-school').selectOption(schoolId);
+  await student.locator('#register-class').selectOption({ label: 'Secondary 1A' });
   await student.locator('#register-form [name="fullName"]').fill('Alex Tan');
   await student.locator('#register-form [name="username"]').fill('alex.tan');
   await student.locator('#register-form [name="password"]').fill(password);
@@ -54,7 +63,7 @@ try {
   catch (error) { console.error('Reload diagnostic:', student.url(), await student.locator('body').innerText(), errors); throw error; }
   const otherContext = await browser.newContext(); const other = await otherContext.newPage(); inspect(other);
   await other.goto(`${origin}/#vote`); await other.locator('#show-register').click();
-  await other.locator('#register-school').selectOption('school-1'); await other.locator('#register-class').selectOption({ label: 'Primary 5A' });
+  await other.locator('#register-school').selectOption(schoolId); await other.locator('#register-class').selectOption({ label: 'Secondary 1A' });
   await other.locator('#register-form [name="fullName"]').fill(' ALEX  TAN '); await other.locator('#register-form [name="username"]').fill('another.username');
   await other.locator('#register-form [name="password"]').fill(password); await other.locator('#register-form [name="confirmPassword"]').fill(password);
   await other.locator('#register-form [name="fullNameConfirmed"]').check(); await other.locator('#register-form button[type="submit"]').click();
