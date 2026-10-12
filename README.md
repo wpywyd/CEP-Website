@@ -49,13 +49,13 @@ This is a persistent Node application, not a static site. Deploy one application
 
 Environment configuration:
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `PORT` | Server port | `3000` |
-| `HOST` | Listen interface; use `0.0.0.0` behind the hosting proxy | `127.0.0.1` |
-| `DATA_DIR` | Persistent private directory holding `portal.sqlite` | `data` relative to the working directory |
-| `NODE_ENV` | Set to `production` on hosting | unset |
-| `PUBLIC_ORIGIN` | Exact HTTPS origin, e.g. `https://showcase.example.org`, no trailing slash | required in production |
+| Variable        | Purpose                                                                    | Default                                  |
+| --------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `PORT`          | Server port                                                                | `3000`                                   |
+| `HOST`          | Listen interface; use `0.0.0.0` behind the hosting proxy                   | `127.0.0.1`                              |
+| `DATA_DIR`      | Persistent private directory holding `portal.sqlite`                       | `data` relative to the working directory |
+| `NODE_ENV`      | Set to `production` on hosting                                             | unset                                    |
+| `PUBLIC_ORIGIN` | Exact HTTPS origin, e.g. `https://showcase.example.org`, no trailing slash | required in production                   |
 
 Use `npm ci --omit=dev` for production; the server has no runtime dependencies. Run the same teacher provisioning command on the host with the same `DATA_DIR`, then start with `npm start`. Do not put the database or backups under `public/`. Production uses Secure cookies, HTTPS origin checks, security headers and same-origin request protection. Keep the full persistent data directory private. Rate limits use the actual socket address rather than trusting user-supplied proxy headers; on hosting with a reverse proxy, users share those limits, which may need tuning for your actual traffic.
 
