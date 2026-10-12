@@ -1,0 +1,1408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Offline student game showcase and monitoring portal for nine schools.">
+  <title>Student Project Showcase — Offline</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e8f82'/%3E%3Crect x='14' y='20' width='36' height='29' rx='6' fill='%23fff' stroke='%23102a43' stroke-width='4'/%3E%3Ccircle cx='25' cy='33' r='4' fill='%23f4c95d'/%3E%3Ccircle cx='39' cy='33' r='4' fill='%23f4c95d'/%3E%3Cpath d='M26 42h12M32 20V11m-6 0h12' stroke='%23102a43' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --canvas: #f5f8f6;
+      --paper: #ffffff;
+      --ink: #102a43;
+      --ink-soft: #29445a;
+      --muted: #64788a;
+      --teal: #0e8f82;
+      --teal-dark: #08766c;
+      --teal-pale: #ddf3ee;
+      --yellow: #f4c95d;
+      --yellow-pale: #fff5cc;
+      --blue-pale: #e7f2ff;
+      --rose-pale: #ffe8ec;
+      --border: #d8e3e8;
+      --danger: #a63a49;
+      --shadow: 0 14px 36px rgba(16, 42, 67, .09);
+      --shadow-hover: 0 18px 46px rgba(16, 42, 67, .14);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 8% 5%, rgba(244, 201, 93, .16), transparent 28rem),
+        radial-gradient(circle at 95% 30%, rgba(14, 143, 130, .09), transparent 32rem),
+        var(--canvas);
+      color: var(--ink);
+      font-family: "Segoe UI", Inter, Arial, sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid rgba(14, 143, 130, .35); outline-offset: 3px; }
+
+    .shell { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      border-bottom: 1px solid rgba(216, 227, 232, .9);
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(16px);
+    }
+    .site-nav {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-width: max-content;
+      font-size: 18px;
+      font-weight: 850;
+      letter-spacing: -.035em;
+    }
+    .brand-mark {
+      position: relative;
+      width: 34px;
+      height: 28px;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      background: var(--teal);
+      box-shadow: 0 5px 0 -1px var(--yellow);
+    }
+    .brand-mark::before {
+      content: "";
+      position: absolute;
+      left: 11px;
+      top: -12px;
+      width: 4px;
+      height: 9px;
+      background: var(--yellow);
+    }
+    .brand-mark i, .brand-mark b {
+      position: absolute;
+      top: 7px;
+      width: 5px;
+      height: 5px;
+      border-radius: 1px;
+      background: #fff;
+    }
+    .brand-mark i { left: 5px; }
+    .brand-mark b { right: 5px; }
+    .offline-badge {
+      padding: 5px 9px;
+      border: 1px solid #bedfd9;
+      border-radius: 999px;
+      background: var(--teal-pale);
+      color: var(--teal-dark);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .08em;
+    }
+    .nav-links {
+      align-self: stretch;
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .nav-link {
+      position: relative;
+      padding: 0 14px;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .nav-link::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      bottom: 0;
+      left: 14px;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      background: var(--teal);
+      transform: scaleX(0);
+      transition: transform .18s ease-out;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--teal-dark); }
+    .nav-link.active::after { transform: scaleX(1); }
+
+    .view { min-height: calc(100vh - 150px); }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--teal-dark);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .13em;
+    }
+    .hero {
+      padding: 66px 0 34px;
+      display: grid;
+      grid-template-columns: .92fr 1.08fr;
+      align-items: center;
+      gap: 58px;
+    }
+    .hero h1 {
+      margin: 0;
+      max-width: 620px;
+      font-size: clamp(42px, 5vw, 68px);
+      line-height: 1;
+      letter-spacing: -.055em;
+    }
+    .hero-lead {
+      margin: 24px 0 0;
+      max-width: 570px;
+      color: var(--ink-soft);
+      font-size: 18px;
+      line-height: 1.65;
+    }
+    .hero-actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
+    .privacy-note {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .privacy-note span {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--teal-pale);
+      color: var(--teal-dark);
+      font-weight: 900;
+    }
+    .button {
+      min-height: 48px;
+      padding: 0 19px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 800;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .button:hover { transform: translateY(-2px); }
+    .button.primary { background: var(--teal); color: #fff; box-shadow: 0 9px 22px rgba(14,143,130,.2); }
+    .button.primary:hover { background: var(--teal-dark); }
+    .button.secondary { border-color: var(--teal); background: #fff; color: var(--teal-dark); }
+    .button.neutral { border-color: var(--border); background: #fff; color: var(--ink); }
+    .button.danger { border-color: #eac3ca; background: #fff; color: var(--danger); }
+    .button.small { min-height: 40px; padding: 0 14px; font-size: 13px; }
+    .button:disabled { opacity: .52; cursor: not-allowed; transform: none; }
+
+    .game-window {
+      overflow: hidden;
+      border: 1px solid #c6dedb;
+      border-radius: 22px;
+      background: #f1fbf9;
+      box-shadow: var(--shadow);
+    }
+    .game-toolbar {
+      height: 45px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+      color: #fff;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+    .window-dots { display: flex; gap: 6px; }
+    .window-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.7); }
+    .game-body { min-height: 300px; display: grid; grid-template-columns: 1.35fr .85fr; }
+    .game-body > img { width: 100%; height: 100%; min-height: 300px; object-fit: cover; image-rendering: pixelated; }
+    .code-panel {
+      padding: 20px 16px;
+      background: #102433;
+      color: #d9e8ee;
+      font-family: Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.9;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .code-panel b { color: #59d5c8; font-weight: 500; }
+    .code-panel em { color: #f4c95d; font-style: normal; }
+    .game-footer {
+      min-height: 48px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .game-footer span:last-child { color: var(--yellow); letter-spacing: 6px; }
+
+    .stats {
+      padding: 8px 0 58px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .stat-card {
+      min-height: 104px;
+      padding: 19px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 8px 24px rgba(16,42,67,.05);
+    }
+    .stat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: var(--teal-pale);
+      color: var(--teal-dark);
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .stat-card strong, .stat-card span { display: block; }
+    .stat-card strong { font-size: 27px; letter-spacing: -.04em; }
+    .stat-card > div > span { margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .stat-card.alert .stat-icon { background: var(--yellow-pale); color: #7b5d08; }
+    .mini-progress { height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: #e8eef1; }
+    .mini-progress i { display: block; height: 100%; border-radius: inherit; background: var(--teal); }
+
+    .section { padding: 58px 0; }
+    .section.white { border-block: 1px solid rgba(216,227,232,.75); background: rgba(255,255,255,.68); }
+    .section-heading {
+      margin-bottom: 26px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 30px;
+    }
+    .section-heading h2, .page-heading h1 { margin: 0; font-size: clamp(28px, 3vw, 42px); letter-spacing: -.045em; }
+    .section-copy { margin: 0; max-width: 470px; color: var(--muted); line-height: 1.6; }
+    .text-button { border: 0; background: transparent; color: var(--teal-dark); cursor: pointer; font-weight: 800; }
+    .project-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    .project-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .project-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+    .project-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #dcefed; image-rendering: pixelated; }
+    .project-card-body { padding: 20px; }
+    .project-topic { margin: 0 0 8px; color: var(--teal-dark); font-size: 11px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    .project-card h3 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
+    .project-meta { margin: 9px 0 16px; color: var(--muted); font-size: 13px; }
+    .project-card-footer { display: flex; align-items: center; gap: 9px; }
+    .project-card-footer .button { margin-left: auto; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #eef2f5;
+      color: #52697a;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .status-pill.published, .status-pill.approved { background: var(--teal-pale); color: var(--teal-dark); }
+    .status-pill.ready-to-review { background: var(--blue-pale); color: #245aa4; }
+    .status-pill.in-progress { background: var(--yellow-pale); color: #745708; }
+    .status-pill.changes-requested { background: var(--rose-pale); color: var(--danger); }
+    .school-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .school-chip {
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      font-weight: 750;
+    }
+    .school-chip:hover { border-color: #91cfc6; }
+    .school-chip b {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 11px;
+    }
+
+    .page-heading { padding: 52px 0 24px; }
+    .page-heading p:last-child { max-width: 730px; margin: 15px 0 0; color: var(--muted); font-size: 16px; line-height: 1.65; }
+    .offline-note {
+      margin: 0 0 22px;
+      padding: 16px 18px;
+      border: 1px solid #c7dedb;
+      border-radius: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #f0fbf8;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+    .offline-note b:first-child {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: var(--teal);
+      color: #fff;
+    }
+    .compact-stats { padding-bottom: 25px; }
+    .panel {
+      margin-bottom: 34px;
+      padding: 25px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.94);
+      box-shadow: var(--shadow);
+    }
+    .panel-heading { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .panel-heading h2 { margin: 0; font-size: 27px; letter-spacing: -.035em; }
+    .mode-badge { padding: 7px 11px; border-radius: 999px; background: var(--teal-pale); color: var(--teal-dark); font-size: 12px; font-weight: 850; }
+    .filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; }
+    label { color: var(--ink-soft); font-size: 13px; font-weight: 750; }
+    label > span.label-text { display: block; margin-bottom: 7px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cbd8de;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+    }
+    input, select { min-height: 45px; padding: 0 12px; }
+    textarea { padding: 11px 12px; resize: vertical; line-height: 1.5; }
+    input:focus, select:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14,143,130,.11); outline: 0; }
+    .results-heading { margin: 19px 0 7px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 13px; }
+    .monitor-list { display: grid; gap: 14px; }
+    .monitor-row {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      display: grid;
+      grid-template-columns: 1.12fr 1.25fr;
+      gap: 22px;
+      background: #fff;
+    }
+    .monitor-project { display: grid; grid-template-columns: 112px 1fr; gap: 15px; align-items: start; }
+    .monitor-project img { width: 112px; aspect-ratio: 4 / 3; border-radius: 11px; object-fit: cover; background: #e7f1f0; image-rendering: pixelated; }
+    .monitor-project h3 { margin: 7px 0 5px; font-size: 19px; }
+    .monitor-project p, .monitor-project small { display: block; margin: 0; color: var(--muted); line-height: 1.45; }
+    .monitor-project small { margin-top: 5px; font-size: 11px; }
+    .monitor-controls { display: grid; grid-template-columns: 1fr .8fr; gap: 12px; }
+    .range-field { grid-column: 1 / -1; }
+    .range-label { display: flex; justify-content: space-between; }
+    input[type="range"] { min-height: 30px; padding: 0; accent-color: var(--teal); box-shadow: none; }
+    .feedback-editor { grid-column: 1 / -1; border-top: 1px solid #edf1f3; padding-top: 8px; }
+    .feedback-editor summary { cursor: pointer; color: var(--teal-dark); font-size: 13px; font-weight: 800; }
+    .feedback-editor textarea { margin-top: 9px; }
+    .monitor-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
+    .monitor-actions .updated { margin-right: auto; color: var(--muted); font-size: 11px; }
+    .empty-state { padding: 38px 20px; border: 1px dashed #b9cbd3; border-radius: 14px; text-align: center; color: var(--muted); }
+    .empty-state strong { display: block; margin-bottom: 7px; color: var(--ink); font-size: 18px; }
+
+    .form-shell { max-width: 930px; margin: 0 auto 54px; }
+    .project-form { padding: 30px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); }
+    .form-section-heading { margin: 28px 0 18px; display: flex; gap: 13px; align-items: flex-start; }
+    .form-section-heading:first-child { margin-top: 0; }
+    .form-section-heading > b {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: var(--teal);
+      color: #fff;
+    }
+    .form-section-heading h2 { margin: 0; font-size: 21px; }
+    .form-section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .form-grid { display: grid; gap: 14px; }
+    .form-grid.two { grid-template-columns: repeat(2, 1fr); }
+    .form-grid.three { grid-template-columns: repeat(3, 1fr); }
+    .project-form > label, .form-grid label { display: block; margin-bottom: 14px; }
+    .field-help { display: block; margin: 6px 0 0; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.45; }
+    .confirm-field { padding: 14px; border: 1px solid #c7dedb; border-radius: 12px; display: flex !important; gap: 11px; background: #f3fbf9; line-height: 1.5; }
+    .confirm-field input { width: 18px; min-height: 18px; margin: 2px 0 0; accent-color: var(--teal); }
+    .form-actions { margin-top: 18px; display: flex; align-items: center; gap: 12px; }
+    .message { margin-top: 15px; padding: 13px 15px; border-radius: 10px; font-size: 13px; font-weight: 700; }
+    .message.success { background: var(--teal-pale); color: var(--teal-dark); }
+    .message.error { background: var(--rose-pale); color: var(--danger); }
+
+    .school-editor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .school-editor { padding: 17px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+    .school-editor-head { margin-bottom: 13px; display: flex; align-items: center; gap: 10px; }
+    .school-avatar { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 900; }
+    .school-editor h3 { margin: 0; font-size: 16px; }
+    .school-editor label { display: block; margin-top: 10px; }
+    .school-editor .button { width: 100%; margin-top: 12px; }
+    .backup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .backup-card { padding: 20px; border: 1px solid var(--border); border-radius: 15px; background: #fff; }
+    .backup-card h3 { margin: 0 0 8px; font-size: 19px; }
+    .backup-card p { margin: 0 0 15px; color: var(--muted); line-height: 1.55; font-size: 13px; }
+    .backup-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+    .inline-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 11px; }
+    .danger-zone { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+    dialog {
+      width: min(680px, calc(100% - 30px));
+      padding: 0;
+      border: 0;
+      border-radius: 19px;
+      color: var(--ink);
+      box-shadow: 0 26px 90px rgba(16,42,67,.28);
+    }
+    dialog::backdrop { background: rgba(16, 42, 67, .58); backdrop-filter: blur(3px); }
+    .dialog-image { width: 100%; max-height: 300px; object-fit: cover; image-rendering: pixelated; }
+    .dialog-body { padding: 24px; }
+    .dialog-body h2 { margin: 8px 0; font-size: 30px; letter-spacing: -.04em; }
+    .dialog-body p { color: var(--ink-soft); line-height: 1.65; }
+    .dialog-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: 13px; }
+    .dialog-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+
+    .site-footer { margin-top: 42px; border-top: 1px solid var(--border); background: #fff; }
+    .footer-inner { min-height: 90px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--muted); font-size: 12px; }
+    .footer-inner strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 14px; }
+    .footer-inner p { margin: 0; }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 80;
+      max-width: min(420px, calc(100% - 40px));
+      padding: 14px 17px;
+      border-radius: 12px;
+      background: var(--ink);
+      color: #fff;
+      box-shadow: 0 16px 45px rgba(16,42,67,.3);
+      font-size: 13px;
+      font-weight: 700;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; gap: 34px; }
+      .game-window { max-width: 760px; }
+      .project-grid, .school-editor-grid { grid-template-columns: repeat(2, 1fr); }
+      .monitor-row { grid-template-columns: 1fr; }
+      .school-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 24px, 1180px); }
+      .site-nav { min-height: 68px; align-items: flex-start; flex-direction: column; padding: 12px 0 0; gap: 8px; }
+      .nav-links { width: 100%; min-height: 48px; overflow-x: auto; }
+      .nav-link { flex: 0 0 auto; padding-inline: 11px; }
+      .nav-link::after { right: 11px; left: 11px; }
+      .hero { padding-top: 44px; }
+      .game-body { grid-template-columns: 1fr; }
+      .code-panel { display: none; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .project-grid, .school-editor-grid, .backup-grid { grid-template-columns: 1fr; }
+      .filters, .form-grid.three { grid-template-columns: 1fr; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .inline-fields { grid-template-columns: 1fr; }
+      .footer-inner { padding: 20px 0; align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 540px) {
+      .offline-badge { display: none; }
+      .hero h1 { font-size: 42px; }
+      .stats, .school-row, .form-grid.two { grid-template-columns: 1fr; }
+      .stat-card { min-height: 88px; }
+      .panel, .project-form { padding: 18px; }
+      .monitor-project { grid-template-columns: 82px 1fr; }
+      .monitor-project img { width: 82px; }
+      .monitor-controls { grid-template-columns: 1fr; }
+      .range-field { grid-column: auto; }
+      .monitor-actions { justify-content: stretch; }
+      .monitor-actions .updated { width: 100%; }
+      .monitor-actions .button { flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  
+    .project-rank { display:inline-flex; border-radius:999px; background:#e8f7f3; color:#087e73; font-size:13px; font-weight:800; padding:7px 12px; margin-bottom:12px; }
+    .project-rank.leading { background:#fff1c6; color:#775700; }
+    .vote-card { margin:24px 0; padding:24px; background:#fff; border:1px solid var(--line); border-radius:18px; }
+    .vote-count { font-weight:800; color:var(--teal, #0e8f82); }
+    .vote-choices { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin:20px 0; }
+    .vote-choice { display:flex; gap:12px; padding:18px; border:2px solid #dce8e5; border-radius:14px; cursor:pointer; }
+    .vote-choice:has(input:checked) { border-color:#0e8f82; background:#eefaf7; }
+    .vote-choice input { width:20px; height:20px; flex-shrink:0; accent-color:#0e8f82; }
+    .vote-choice small { display:block; margin-top:6px; color:var(--muted); }
+    .vote-table-wrap { overflow:auto; }
+    .vote-table { border-collapse:collapse; width:100%; margin-top:18px; }
+    .vote-table th,.vote-table td { padding:14px 12px; text-align:left; border-bottom:1px solid #e4ecea; }
+    .vote-table th { color:var(--muted); font-size:13px; }
+    .vote-table td:last-child { font-weight:800; }
+    #voter-message { margin:16px 0; padding:14px; background:#edf8f5; border-radius:10px; }
+    .project-card-footer { flex-wrap:wrap; gap:10px; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav shell" aria-label="Main navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><b></b></span>
+        <span>Student Project Showcase</span>
+        <span class="offline-badge">OFFLINE</span>
+      </div>
+      <div class="nav-links" role="tablist" aria-label="Portal areas">
+        <button class="nav-link active" type="button" data-view-target="showcase">Showcase</button>
+        <button class="nav-link" type="button" data-view-target="voting">Vote</button>
+        <button class="nav-link" type="button" data-view-target="dashboard">Monitor</button>
+        <button class="nav-link" type="button" data-view-target="submit">Submit project</button>
+        <button class="nav-link" type="button" data-view-target="data">Schools &amp; backup</button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="view" id="view-showcase" data-view="showcase">
+      <div class="hero shell">
+        <div>
+          <p class="eyebrow">P5 COMPUTING ENRICHMENT PROGRAMME</p>
+          <h1>Every game tells a learning story</h1>
+          <p class="hero-lead">Nine schools are designing educational games with Python—one idea, test and improvement at a time.</p>
+          <div class="hero-actions">
+            <button class="button primary" type="button" data-view-target="submit">Add a project <span aria-hidden="true">→</span></button>
+            <button class="button secondary" type="button" data-view-target="dashboard">Open dashboard <span aria-hidden="true">→</span></button>
+          </div>
+          <p class="privacy-note"><span aria-hidden="true">✓</span>Data is saved only on this computer. Use team identifiers—never pupil names.</p>
+        </div>
+        <div class="game-window" aria-label="Educational game preview">
+          <div class="game-toolbar"><span>learning-adventure.py</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+          <div class="game-body">
+            <img src="assets/hero-game-scene.png" alt="Pixel-art educational platform game scene">
+            <div class="code-panel" aria-hidden="true">
+              <div><b>scene</b>.set_background_color(7)</div>
+              <div>hero = <b>sprites</b>.create(...)</div>
+              <br>
+              <div><b>def</b> collect_food():</div>
+              <div>&nbsp;&nbsp;info.change_score_by(1)</div>
+              <div>&nbsp;&nbsp;show_feedback()</div>
+              <br>
+              <div><b>if</b> info.score() &gt;= <em>5</em>:</div>
+              <div>&nbsp;&nbsp;game.game_over(<em>True</em>)</div>
+            </div>
+          </div>
+          <div class="game-footer"><span>Microsoft MakeCode Arcade</span><span aria-hidden="true">✦ ✦</span></div>
+        </div>
+      </div>
+
+      <div class="stats shell" id="showcase-stats" aria-label="Programme summary"></div>
+
+      <section class="section white">
+        <div class="shell">
+          <div class="section-heading">
+            <div><p class="eyebrow">APPROVED FOR SHOWCASE</p><h2>Featured student projects</h2></div>
+            <button class="text-button" type="button" data-view-target="dashboard">View programme progress →</button>
+          </div>
+          <p class="section-copy">Explore the games and vote for your favourite. Projects are ranked by student votes; ties share a rank.</p>
+          <div class="project-grid" id="featured-projects"></div>
+        <section class="vote-card" aria-labelledby="vote-results-title">
+          <div class="panel-heading"><div><p class="eyebrow">PEOPLE’S CHOICE</p><h2 id="vote-results-title">Voting results</h2></div><button class="button secondary small" type="button" id="export-vote-results">Export results CSV</button></div>
+          <p id="vote-summary" aria-live="polite"></p><p class="field-help">These totals include only votes saved or imported on this computer. Equal totals share the same rank.</p>
+          <div class="vote-table-wrap" id="vote-results"></div>
+        </section>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-heading">
+            <div><p class="eyebrow">ONE SHARED PROGRAMME</p><h2>Nine schools, one creative community</h2></div>
+            <p class="section-copy">Select a school to review its project records in the monitoring dashboard.</p>
+          </div>
+          <div class="school-row" id="showcase-schools"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="view" id="view-voting" data-view="voting" hidden>
+      <div class="page-heading shell"><p class="eyebrow">STUDENT CHOICE AWARD</p><h1>Vote for your favourite project</h1><p>Explore the games, then choose the project you enjoyed most. Each student has one vote and cannot vote for their own team.</p></div>
+      <div class="shell">
+        <div class="offline-note"><b aria-hidden="true">★</b><div>Votes are saved on this computer. Trainers can export and merge backups to combine results from different devices. Use the same teacher-assigned code each time; codes are not verified logins.</div></div>
+        <form id="voter-form" class="vote-card">
+          <h2>1. Identify your team</h2><p>Use an anonymous code supplied by your teacher, such as C1-023. Do not use your name.</p>
+          <div class="form-grid three">
+            <label><span class="label-text">Your school</span><select id="voter-school" required></select></label>
+            <label><span class="label-text">Your student code</span><input id="voter-code" required maxlength="32" pattern="[A-Za-z0-9_-]+" autocomplete="off" placeholder="Example: C1-023"><small class="field-help">Letters, numbers, hyphens and underscores only.</small></label>
+            <label><span class="label-text">Your own team / project</span><select id="voter-own-project" required></select></label>
+          </div>
+          <div class="form-actions"><button class="button secondary" type="submit">Continue to voting</button><button class="button neutral" id="next-voter" type="button">Next student / clear code</button></div>
+        </form>
+        <form id="ballot-form" class="vote-card" hidden>
+          <h2>2. Choose your favourite</h2><div id="voter-message" role="status" aria-live="polite"></div>
+          <p>Think about the learning idea, gameplay and creativity. Choose one project. Saving another choice replaces your earlier vote.</p>
+          <div class="vote-choices" id="vote-choices"></div>
+          <button class="button primary" type="submit" id="save-vote">Save my vote</button>
+        </form>
+        <div class="form-actions"><button class="button secondary" type="button" data-view-target="showcase">See featured projects &amp; rankings →</button></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-dashboard" data-view="dashboard" hidden>
+      <div class="page-heading shell">
+        <p class="eyebrow">PROGRAMME TEAM</p>
+        <h1>Project monitoring dashboard</h1>
+        <p>Review every team, update its checkpoint and record trainer feedback. Changes are saved in this browser on this computer.</p>
+      </div>
+      <div class="shell">
+        <div class="offline-note"><b aria-hidden="true">↧</b><div><strong>Offline storage is active.</strong> Other computers will not see these changes automatically. Export a backup from each school and import it into the master copy using <em>Merge</em>.</div></div>
+      </div>
+      <div class="stats shell compact-stats" id="dashboard-stats"></div>
+      <section class="panel shell">
+        <div class="panel-heading"><div><p class="eyebrow">PROJECT MONITOR</p><h2>All student teams</h2></div><span class="mode-badge">Saved on this device</span></div>
+        <div class="filters">
+          <label><span class="label-text">Search projects</span><input id="filter-query" type="search" placeholder="Game, topic, team or school"></label>
+          <label><span class="label-text">School</span><select id="filter-school"></select></label>
+          <label><span class="label-text">Status</span><select id="filter-status"></select></label>
+        </div>
+        <div class="results-heading"><span id="result-count"></span><button class="text-button" id="clear-filters" type="button">Clear filters</button></div>
+        <div class="monitor-list" id="project-monitor-list"></div>
+      </section>
+    </section>
+
+    <section class="view" id="view-submit" data-view="submit" hidden>
+      <div class="page-heading shell">
+        <p class="eyebrow">STUDENT TEAM CHECKPOINT</p>
+        <h1>Submit a project record</h1>
+        <p>Add a MakeCode Arcade game and its learning objective. Use a team name or code only—do not enter pupils’ personal information.</p>
+      </div>
+      <div class="form-shell shell">
+        <form class="project-form" id="project-form">
+          <div class="form-section-heading"><b>1</b><div><h2>Team and school</h2><p>Identify the team without using pupils’ names.</p></div></div>
+          <div class="form-grid two">
+            <label><span class="label-text">School</span><select name="schoolId" id="submit-school" required></select></label>
+            <label><span class="label-text">Team name or code</span><input name="teamName" required maxlength="80" placeholder="Example: Team 3"></label>
+          </div>
+
+          <div class="form-section-heading"><b>2</b><div><h2>Game information</h2><p>Explain what the player learns through the game.</p></div></div>
+          <div class="form-grid two">
+            <label><span class="label-text">Game title</span><input name="gameTitle" required maxlength="120" placeholder="Example: Healthy Food Collector"></label>
+            <label><span class="label-text">Learning topic</span><input name="learningTopic" required maxlength="100" placeholder="Example: Health &amp; Nutrition"></label>
+          </div>
+          <label><span class="label-text">Project description</span><textarea name="description" rows="4" maxlength="600" placeholder="Describe the learning objective, main challenge and feedback given to the player."></textarea></label>
+          <div class="form-grid two">
+            <label><span class="label-text">MakeCode Arcade share link</span><input name="makecodeUrl" type="url" inputmode="url" placeholder="https://arcade.makecode.com/..."><small class="field-help">The record is available offline, but opening a web share link still requires internet access.</small></label>
+            <label><span class="label-text">Project thumbnail</span><input name="thumbnailFile" type="file" accept="image/png,image/jpeg,image/webp"><small class="field-help">Optional. Use PNG, JPG or WebP up to 1 MB. It will be stored in this browser.</small></label>
+          </div>
+
+          <div class="form-section-heading"><b>3</b><div><h2>Progress checkpoint</h2><p>Record where the project is in the eight-session programme.</p></div></div>
+          <div class="form-grid three">
+            <label><span class="label-text">Current session</span><select name="currentSession" id="submit-session"></select></label>
+            <label><span class="label-text">Review status</span><select name="status" id="submit-status"></select></label>
+            <label><span class="range-label"><span>Completion</span><strong id="submit-progress-value">25%</strong></span><input name="progress" id="submit-progress" type="range" min="0" max="100" step="5" value="25"></label>
+          </div>
+          <label class="confirm-field"><input name="privacyConfirmation" type="checkbox" required><span>I confirm that this submission contains team information only and no pupil names, personal email addresses, photographs or contact details.</span></label>
+          <div id="submit-message" aria-live="polite"></div>
+          <div class="form-actions"><button class="button primary" type="submit">Save project submission <span aria-hidden="true">→</span></button><button class="button neutral" type="reset">Clear form</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="view" id="view-data" data-view="data" hidden>
+      <div class="page-heading shell">
+        <p class="eyebrow">OFFLINE ADMINISTRATION</p>
+        <h1>Schools, backups and consolidation</h1>
+        <p>Rename the nine schools, create safety backups and combine project records collected on different computers.</p>
+      </div>
+      <div class="shell">
+        <section class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">SCHOOL SETUP</p><h2>Edit participating schools</h2></div><span class="mode-badge">9 school records</span></div>
+          <div class="school-editor-grid" id="school-editor-grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">DATA SAFETY</p><h2>Backup and combine records</h2></div></div>
+          <div class="backup-grid">
+            <article class="backup-card">
+              <h3>Master backup</h3>
+              <p>Save every school, project and student vote as one JSON backup. Keep a copy after each lesson or major update.</p>
+              <div class="backup-actions"><button class="button primary small" id="export-all" type="button">Export all data</button><button class="button neutral small" id="export-csv" type="button">Export project CSV</button></div>
+            </article>
+            <article class="backup-card">
+              <h3>School handover file</h3>
+              <p>Export one school’s projects and student votes. Projects referenced by these votes are included so the coordinator can merge complete voting records.</p>
+              <label><span class="label-text">School to export</span><select id="export-school-select"></select></label>
+              <div class="backup-actions"><button class="button secondary small" id="export-school" type="button">Export selected school</button></div>
+            </article>
+            <article class="backup-card">
+              <h3>Import a backup</h3>
+              <p><strong>Merge</strong> adds or updates records without removing local work. <strong>Replace</strong> discards the current local database.</p>
+              <div class="inline-fields">
+                <label><span class="label-text">Import method</span><select id="import-mode"><option value="merge">Merge into this copy</option><option value="replace">Replace this copy</option></select></label>
+                <label><span class="label-text">JSON backup file</span><input id="import-file" type="file" accept="application/json,.json"></label>
+              </div>
+              <button class="button primary small" id="import-data" type="button">Import selected file</button>
+            </article>
+            <article class="backup-card">
+              <h3>Recommended nine-school workflow</h3>
+              <p>Each school keeps its own copy, exports a school handover file, and sends it to the coordinator. The coordinator selects <strong>Merge</strong> for every file, then exports a new master backup.</p>
+              <div class="offline-note" style="margin:0"><b aria-hidden="true">!</b><div>Browser data can be cleared by computer maintenance. The exported JSON file is the recoverable backup.</div></div>
+            </article>
+          </div>
+          <div class="danger-zone">
+            <div class="backup-actions"><button class="button danger small" id="clear-projects" type="button">Remove all projects</button><button class="button danger small" id="reset-sample" type="button">Restore sample data</button></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner shell"><div><strong>Student Project Showcase</strong><p>P5 Game Design with Python Programming</p></div><p>Offline edition · Team identifiers only · Export regular backups</p></div>
+  </footer>
+
+  <dialog id="project-dialog" aria-labelledby="dialog-title">
+    <div id="dialog-content"></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "ep_student_project_showcase_offline_v1";
+    const PACKAGE_VERSION = 2;
+    const STATUS_OPTIONS = ["Not started", "In progress", "Ready to review", "Changes requested", "Approved", "Published"];
+
+    const SAMPLE_DATA = {
+      votes: [],
+      schools: [
+        { id: "school-1", name: "School 1", shortName: "S1", targetTeams: 8, accent: "#0E8F82" },
+        { id: "school-2", name: "School 2", shortName: "S2", targetTeams: 8, accent: "#2D6CDF" },
+        { id: "school-3", name: "School 3", shortName: "S3", targetTeams: 8, accent: "#DB8B15" },
+        { id: "school-4", name: "School 4", shortName: "S4", targetTeams: 8, accent: "#7357C8" },
+        { id: "school-5", name: "School 5", shortName: "S5", targetTeams: 8, accent: "#D35464" },
+        { id: "school-6", name: "School 6", shortName: "S6", targetTeams: 8, accent: "#2389A4" },
+        { id: "school-7", name: "School 7", shortName: "S7", targetTeams: 8, accent: "#4C8B3B" },
+        { id: "school-8", name: "School 8", shortName: "S8", targetTeams: 8, accent: "#C35A25" },
+        { id: "school-9", name: "School 9", shortName: "S9", targetTeams: 8, accent: "#3156A5" }
+      ],
+      projects: [
+        { id: "healthy-food-collector", schoolId: "school-1", teamName: "Team 3", gameTitle: "Healthy Food Collector", learningTopic: "Health & Nutrition", description: "Collect nutritious food while learning how everyday choices support a balanced diet.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/healthy-food-collector.png", status: "Published", progress: 100, currentSession: 8, trainerFeedback: "Clear learning goal and strong visual feedback.", updatedAt: "2026-07-25T09:30:00.000Z" },
+        { id: "hygiene-defender", schoolId: "school-2", teamName: "Team 1", gameTitle: "Hygiene Defender", learningTopic: "Health & Hygiene", description: "Collect soap, avoid germs and practise healthy hygiene routines through fast-paced play.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hygiene-defender.png", status: "Published", progress: 100, currentSession: 8, trainerFeedback: "Excellent onboarding and collision feedback.", updatedAt: "2026-07-24T12:15:00.000Z" },
+        { id: "recycling-rush", schoolId: "school-3", teamName: "Team 2", gameTitle: "Recycling Rush", learningTopic: "Sustainability", description: "Sort recyclable items accurately while the falling-object challenge becomes progressively faster.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/recycling-rush.png", status: "Published", progress: 100, currentSession: 8, trainerFeedback: "Balanced difficulty supported by playtest data.", updatedAt: "2026-07-24T08:45:00.000Z" },
+        { id: "mathematics-gatekeeper", schoolId: "school-4", teamName: "Team 4", gameTitle: "Mathematics Gatekeeper", learningTopic: "Mathematics", description: "Answer progressively harder number challenges to unlock each gate and complete the quest.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "Ready to review", progress: 82, currentSession: 7, trainerFeedback: "Check the final answer branch and add clearer retry feedback.", updatedAt: "2026-07-23T14:10:00.000Z" },
+        { id: "eco-maze-story-quest", schoolId: "school-5", teamName: "Team 1", gameTitle: "Eco-Maze Story Quest", learningTopic: "Environmental Science", description: "Follow environmental clues through a maze and unlock the exit by applying water-saving knowledge.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "In progress", progress: 66, currentSession: 6, trainerFeedback: "The learning clue is strong; simplify the route to the exit.", updatedAt: "2026-07-22T11:20:00.000Z" },
+        { id: "water-wise-adventure", schoolId: "school-6", teamName: "Team 5", gameTitle: "Water Wise Adventure", learningTopic: "Sustainability", description: "Complete short challenges that compare water-saving and water-wasting household choices.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "Changes requested", progress: 58, currentSession: 6, trainerFeedback: "Correct two content statements before the next build checkpoint.", updatedAt: "2026-07-22T07:05:00.000Z" },
+        { id: "cyber-safety-quest", schoolId: "school-7", teamName: "Team 2", gameTitle: "Cyber Safety Quest", learningTopic: "Cyber Wellness", description: "Choose safe online actions, protect personal information and earn digital citizenship badges.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "In progress", progress: 47, currentSession: 5, trainerFeedback: "Add one consequence for each unsafe choice.", updatedAt: "2026-07-21T10:40:00.000Z" },
+        { id: "fraction-frontier", schoolId: "school-8", teamName: "Team 6", gameTitle: "Fraction Frontier", learningTopic: "Mathematics", description: "Match visual fractions to equivalent values while exploring a colourful platform world.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "Approved", progress: 94, currentSession: 8, trainerFeedback: "Approved after the final accessibility check.", updatedAt: "2026-07-25T06:30:00.000Z" },
+        { id: "kindness-mission", schoolId: "school-9", teamName: "Team 3", gameTitle: "Kindness Mission", learningTopic: "Social-Emotional Learning", description: "Use dialogue choices to practise empathy, helpful communication and responsible decision-making.", makecodeUrl: "https://arcade.makecode.com/", thumbnailUrl: "assets/hero-game-scene.png", status: "Not started", progress: 12, currentSession: 2, trainerFeedback: "Submit the first playable interaction before Session 3.", updatedAt: "2026-07-20T09:00:00.000Z" }
+      ]
+    };
+
+    const clone = value => JSON.parse(JSON.stringify(value));
+    let portal = loadData();
+    let activeView = "showcase";
+    const filters = { query: "", school: "all", status: "all" };
+    let toastTimer;
+    let activeVoter = null;
+    let pendingVoteProject = null;
+
+    function loadData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return clone(SAMPLE_DATA);
+        return normaliseData(JSON.parse(saved));
+      } catch (error) {
+        console.warn("Could not load saved portal data.", error);
+        return clone(SAMPLE_DATA);
+      }
+    }
+
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(portal));
+        return true;
+      } catch (error) {
+        console.error(error);
+        showToast("Storage is full. Export a backup, then remove large thumbnail images.");
+        return false;
+      }
+    }
+
+    function normaliseData(raw) {
+      if (!raw || !Array.isArray(raw.schools) || !Array.isArray(raw.projects)) {
+        throw new Error("This file is not a valid portal backup.");
+      }
+      const accentFallback = ["#0E8F82", "#2D6CDF", "#DB8B15", "#7357C8", "#D35464", "#2389A4", "#4C8B3B", "#C35A25", "#3156A5"];
+      const schools = raw.schools.map((school, index) => ({
+        id: cleanText(school.id, 80) || `school-${index + 1}`,
+        name: cleanText(school.name, 120) || `School ${index + 1}`,
+        shortName: (cleanText(school.shortName, 8) || `S${index + 1}`).toUpperCase(),
+        targetTeams: clampNumber(school.targetTeams, 1, 100, 8),
+        accent: /^#[0-9a-f]{6}$/i.test(String(school.accent || "")) ? school.accent : accentFallback[index % accentFallback.length]
+      }));
+      const validSchoolIds = new Set(schools.map(school => school.id));
+      const projects = raw.projects
+        .filter(project => validSchoolIds.has(String(project.schoolId || "")))
+        .map((project, index) => ({
+          id: cleanText(project.id, 120) || `imported-${Date.now()}-${index}`,
+          schoolId: String(project.schoolId),
+          teamName: cleanText(project.teamName, 80) || "Team",
+          gameTitle: cleanText(project.gameTitle, 120) || "Untitled Game",
+          learningTopic: cleanText(project.learningTopic, 100) || "General Learning",
+          description: cleanText(project.description, 600),
+          makecodeUrl: safeWebUrl(project.makecodeUrl),
+          thumbnailUrl: safeImageUrl(project.thumbnailUrl),
+          status: STATUS_OPTIONS.includes(project.status) ? project.status : "In progress",
+          progress: clampNumber(project.progress, 0, 100, 0),
+          currentSession: clampNumber(project.currentSession, 1, 8, 1),
+          trainerFeedback: cleanText(project.trainerFeedback, 500),
+          updatedAt: validDate(project.updatedAt) ? project.updatedAt : new Date().toISOString()
+        }));
+      return { schools, projects, votes: normaliseVotes(raw.votes, schools, projects) };
+    }
+
+    function voteKey(schoolId, code) { return JSON.stringify([schoolId, code.trim().toUpperCase()]); }
+    function newerVote(a, b) {
+      const difference = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      return difference > 0 || (difference === 0 && JSON.stringify(a) > JSON.stringify(b));
+    }
+    function normaliseVotes(raw, schools, projects) {
+      const records = new Map();
+      for (const item of Array.isArray(raw) ? raw : []) {
+        if (!item || typeof item !== "object") continue;
+        const schoolId = cleanText(item.schoolId, 80);
+        const studentCode = cleanText(item.studentCode, 32).toUpperCase();
+        const own = projects.find(p => p.id === item.ownProjectId && p.schoolId === schoolId);
+        const target = projects.find(p => p.id === item.projectId);
+        if (!schools.some(s => s.id === schoolId) || !/^[A-Z0-9_-]{1,32}$/.test(studentCode) || !own || !target || !validDate(item.updatedAt) || item.projectId === own.id || (own.schoolId === target.schoolId && own.teamName.trim().toUpperCase() === target.teamName.trim().toUpperCase())) continue;
+        const vote = {schoolId, studentCode, ownProjectId:own.id, projectId:target.id, updatedAt:new Date(item.updatedAt).toISOString()};
+        const key = voteKey(schoolId, studentCode);
+        if (!records.has(key) || newerVote(vote, records.get(key))) records.set(key, vote);
+      }
+      return [...records.values()];
+    }
+    function validVotes() { return normaliseVotes(portal.votes, portal.schools, portal.projects); }
+    function voteCount(id) { return validVotes().filter(v => v.projectId === id).length; }
+    function isOwnTeam(project) {
+      if (!activeVoter) return false;
+      const own = portal.projects.find(p => p.id === activeVoter.ownProjectId);
+      return project.id === own?.id || (project.schoolId === own?.schoolId && project.teamName.trim().toUpperCase() === own.teamName.trim().toUpperCase());
+    }
+    function renderOwnProjects() {
+      const select = document.getElementById("voter-own-project");
+      const previous = select.value;
+      const projects = portal.projects.filter(p => p.schoolId === document.getElementById("voter-school").value);
+      select.innerHTML = '<option value="">Select your team / project</option>' + projects.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.teamName)} — ${escapeHtml(p.gameTitle)}</option>`).join("");
+      if (projects.some(p => p.id === previous)) select.value = previous;
+    }
+    function rankedPublishedProjects() {
+      const votes = validVotes();
+      const ranked = portal.projects.filter(p => p.status === "Published").map(project => ({project, count:votes.filter(v => v.projectId === project.id).length})).sort((a,b) => b.count-a.count || a.project.gameTitle.localeCompare(b.project.gameTitle));
+      let rank=0, previousCount=null;
+      return ranked.map((row,index) => {if(row.count !== previousCount) rank=index+1; previousCount=row.count; return {...row, rank:row.count ? rank : null};});
+    }
+    function renderVotingResults() {
+      const votes = validVotes();
+      const ranked = rankedPublishedProjects();
+      const outside = votes.filter(v => !ranked.some(row => row.project.id === v.projectId)).length;
+      document.getElementById("vote-summary").textContent = `${votes.length} student vote${votes.length === 1 ? '' : 's'} recorded · ${ranked.length} published projects.` + (outside ? ` ${outside} vote(s) belong to projects currently outside the showcase.` : '');
+      document.getElementById("vote-results").innerHTML = ranked.length ? `<table class="vote-table"><thead><tr><th scope="col">Rank</th><th scope="col">Project</th><th scope="col">School / team</th><th scope="col">Votes</th></tr></thead><tbody>${ranked.map(row => `<tr><td>${row.rank ?? '—'}</td><td><button type="button" class="text-button" data-project-details="${escapeHtml(row.project.id)}">${escapeHtml(row.project.gameTitle)}</button></td><td>${escapeHtml(schoolFor(row.project)?.name)} · ${escapeHtml(row.project.teamName)}</td><td>${row.count}</td></tr>`).join("")}</tbody></table>` : '<p>No published projects yet.</p>';
+    }
+    function renderVoting() {
+      const select = document.getElementById("voter-school");
+      const previous = select.value;
+      select.innerHTML = '<option value="">Select your school</option>' + portal.schools.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
+      select.value = portal.schools.some(s => s.id === previous) ? previous : "";
+      renderOwnProjects();
+      if (activeVoter && !portal.projects.some(p => p.id === activeVoter.ownProjectId && p.schoolId === activeVoter.schoolId)) activeVoter = null;
+      const published = portal.projects.filter(p => p.status === "Published");
+      const votes = validVotes();
+      document.getElementById("ballot-form").hidden = !activeVoter;
+      if (activeVoter) {
+        const current = votes.find(v => voteKey(v.schoolId, v.studentCode) === voteKey(activeVoter.schoolId, activeVoter.studentCode));
+        const chosen = pendingVoteProject || current?.projectId;
+        const existing = portal.projects.find(p => p.id === current?.projectId);
+        document.getElementById("voter-message").textContent = `Student ${activeVoter.studentCode} · ${portal.schools.find(s => s.id === activeVoter.schoolId)?.name}. ` + (current ? `Your saved choice: ${existing?.gameTitle}. You may change it.` : "You have not voted yet.");
+        const eligible = published.filter(p => !isOwnTeam(p));
+        document.getElementById("vote-choices").innerHTML = eligible.length ? eligible.map(p => `<label class="vote-choice"><input type="radio" name="favourite" required value="${escapeHtml(p.id)}" ${p.id === chosen ? 'checked' : ''}><span><strong>${escapeHtml(p.gameTitle)}</strong><small>${escapeHtml(schoolFor(p)?.name)} · ${escapeHtml(p.teamName)}</small><small>${escapeHtml(p.learningTopic)}</small></span></label>`).join("") : '<p>No other published projects are available. Ask your trainer to publish projects in Monitor.</p>';
+        document.getElementById("save-vote").disabled = !eligible.length;
+        pendingVoteProject = null;
+      }
+      renderVotingResults();
+    }
+
+    function cleanText(value, max) { return String(value ?? "").trim().slice(0, max); }
+    function clampNumber(value, min, max, fallback) {
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.round(number))) : fallback;
+    }
+    function validDate(value) { return !Number.isNaN(new Date(value).getTime()); }
+    function safeWebUrl(value) {
+      const input = String(value || "").trim();
+      if (!input) return "";
+      try {
+        const url = new URL(input);
+        return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+      } catch { return ""; }
+    }
+    function safeImageUrl(value) {
+      const input = String(value || "").trim();
+      if (!input) return "assets/hero-game-scene.png";
+      if (/^data:image\/(png|jpeg|webp);base64,/i.test(input)) return input;
+      if (/^assets\/[a-z0-9._-]+$/i.test(input)) return input;
+      return safeWebUrl(input) || "assets/hero-game-scene.png";
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[character]));
+    }
+    function statusClass(status) { return String(status).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+    function schoolFor(project) { return portal.schools.find(school => school.id === project.schoolId); }
+    function stats() {
+      const progress = portal.projects.length ? Math.round(portal.projects.reduce((sum, project) => sum + project.progress, 0) / portal.projects.length) : 0;
+      return {
+        schools: portal.schools.length,
+        projects: portal.projects.length,
+        sessions: 8,
+        progress,
+        attention: portal.projects.filter(project => ["Ready to review", "Changes requested"].includes(project.status)).length
+      };
+    }
+    function readableDate(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "Recently";
+      return new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", year: "numeric" }).format(date);
+    }
+    function projectId() {
+      return typeof crypto !== "undefined" && crypto.randomUUID ? `project-${crypto.randomUUID()}` : `project-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    }
+
+    function setView(view, options = {}) {
+      if (!["showcase", "voting", "dashboard", "submit", "data"].includes(view)) return;
+      activeView = view;
+      document.querySelectorAll("[data-view]").forEach(section => { section.hidden = section.dataset.view !== view; });
+      document.querySelectorAll(".nav-link").forEach(button => {
+        const active = button.dataset.viewTarget === view;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+      });
+      if (view === "voting") renderVoting();
+      if (view === "dashboard") renderDashboard();
+      if (view === "data") renderDataPage();
+      if (view === "submit") populateSubmissionForm();
+      if (!options.keepScroll) window.scrollTo({ top: 0, behavior: "smooth" });
+      history.replaceState(null, "", `#${view}`);
+    }
+
+    function statMarkup(itemNumber, value, label, extraClass = "", progress = null) {
+      return `<article class="stat-card ${extraClass}"><span class="stat-icon">${itemNumber}</span><div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span>${progress === null ? "" : `<div class="mini-progress" aria-label="${progress}% complete"><i style="width:${progress}%"></i></div>`}</div></article>`;
+    }
+
+    function renderShowcase() {
+      const summary = stats();
+      document.getElementById("showcase-stats").innerHTML = [
+        statMarkup("01", summary.schools, "Schools"),
+        statMarkup("02", summary.projects, "Projects"),
+        statMarkup("03", summary.sessions, "Sessions"),
+        statMarkup("04", `${summary.progress}%`, "Complete", "", summary.progress)
+      ].join("");
+
+      const featured = rankedPublishedProjects();
+      document.getElementById("featured-projects").innerHTML = featured.length ? featured.map(({project, count, rank}) => {
+        const school = schoolFor(project);
+        return `<article class="project-card">
+          <img class="project-image" src="${escapeHtml(safeImageUrl(project.thumbnailUrl))}" alt="${escapeHtml(project.gameTitle)} game artwork">
+          <div class="project-card-body">
+            <span class="project-rank ${rank === 1 ? 'leading' : ''}">${rank ? `Rank #${rank}` : 'Awaiting votes'}</span>
+            <p class="project-topic">${escapeHtml(project.learningTopic)}</p>
+            <h3>${escapeHtml(project.gameTitle)}</h3>
+            <p class="project-meta">${escapeHtml(school?.name || "Unknown school")} · ${escapeHtml(project.teamName)}</p>
+            <div class="project-card-footer"><span class="vote-count">★ ${count} vote${count === 1 ? '' : 's'}</span><button class="button primary small" type="button" data-vote-project="${escapeHtml(project.id)}">Vote</button><span class="status-pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span><button class="button secondary small" type="button" data-project-details="${escapeHtml(project.id)}">View</button></div>
+          </div>
+        </article>`;
+      }).join("") : `<div class="empty-state" style="grid-column:1/-1"><strong>No published projects yet</strong>Change a project’s status to Published in the monitoring dashboard.</div>`;
+
+      document.getElementById("showcase-schools").innerHTML = portal.schools.map(school => {
+        const count = portal.projects.filter(project => project.schoolId === school.id).length;
+        return `<button class="school-chip" type="button" data-school-dashboard="${escapeHtml(school.id)}"><b style="background:${school.accent}">${escapeHtml(school.shortName)}</b><span>${escapeHtml(school.name)}<small style="display:block;margin-top:3px;color:var(--muted);font-weight:600">${count} project${count === 1 ? "" : "s"}</small></span></button>`;
+      }).join("");
+    }
+
+    function renderDashboard() {
+      const summary = stats();
+      document.getElementById("dashboard-stats").innerHTML = [
+        statMarkup("01", summary.schools, "Schools"),
+        statMarkup("02", summary.projects, "Tracked projects"),
+        statMarkup("03", summary.attention, "Need attention", "alert"),
+        statMarkup("04", `${summary.progress}%`, "Overall progress", "", summary.progress)
+      ].join("");
+
+      const schoolSelect = document.getElementById("filter-school");
+      schoolSelect.innerHTML = `<option value="all">All nine schools</option>${portal.schools.map(school => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)}</option>`).join("")}`;
+      schoolSelect.value = portal.schools.some(school => school.id === filters.school) ? filters.school : "all";
+      filters.school = schoolSelect.value;
+
+      const statusSelect = document.getElementById("filter-status");
+      statusSelect.innerHTML = `<option value="all">All statuses</option>${STATUS_OPTIONS.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join("")}`;
+      statusSelect.value = STATUS_OPTIONS.includes(filters.status) ? filters.status : "all";
+      filters.status = statusSelect.value;
+      document.getElementById("filter-query").value = filters.query;
+      renderProjectList();
+    }
+
+    function renderProjectList() {
+      const needle = filters.query.trim().toLowerCase();
+      const filtered = portal.projects
+        .filter(project => {
+          const school = schoolFor(project);
+          const textMatch = !needle || [project.gameTitle, project.teamName, project.learningTopic, school?.name || ""].some(value => value.toLowerCase().includes(needle));
+          return textMatch && (filters.school === "all" || project.schoolId === filters.school) && (filters.status === "all" || project.status === filters.status);
+        })
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      document.getElementById("result-count").textContent = `${filtered.length} project${filtered.length === 1 ? "" : "s"}`;
+      document.getElementById("clear-filters").hidden = !filters.query && filters.school === "all" && filters.status === "all";
+
+      document.getElementById("project-monitor-list").innerHTML = filtered.length ? filtered.map(project => {
+        const school = schoolFor(project);
+        const webLink = safeWebUrl(project.makecodeUrl);
+        return `<article class="monitor-row" data-project-row="${escapeHtml(project.id)}">
+          <div class="monitor-project">
+            <img src="${escapeHtml(safeImageUrl(project.thumbnailUrl))}" alt="">
+            <div><span class="status-pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span><h3>${escapeHtml(project.gameTitle)}</h3><p>${escapeHtml(school?.name || "Unknown school")} · ${escapeHtml(project.teamName)}</p><small>${escapeHtml(project.learningTopic)} · Updated ${escapeHtml(readableDate(project.updatedAt))}</small></div>
+          </div>
+          <div class="monitor-controls">
+            <label><span class="label-text">Status</span><select data-field="status">${STATUS_OPTIONS.map(status => `<option value="${escapeHtml(status)}" ${status === project.status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
+            <label><span class="label-text">Session</span><select data-field="currentSession">${Array.from({ length: 8 }, (_, index) => index + 1).map(session => `<option value="${session}" ${session === project.currentSession ? "selected" : ""}>Session ${session}</option>`).join("")}</select></label>
+            <label class="range-field"><span class="range-label"><span>Progress</span><strong data-range-output>${project.progress}%</strong></span><input data-field="progress" type="range" min="0" max="100" step="1" value="${project.progress}"></label>
+            <details class="feedback-editor"><summary>Trainer feedback</summary><textarea data-field="trainerFeedback" rows="3" maxlength="500" aria-label="Trainer feedback for ${escapeHtml(project.gameTitle)}">${escapeHtml(project.trainerFeedback)}</textarea></details>
+            <div class="monitor-actions"><span class="updated">Changes remain on this computer until exported.</span>${webLink ? `<a class="button neutral small" href="${escapeHtml(webLink)}" target="_blank" rel="noreferrer">Open game ↗</a>` : ""}<button class="button primary small" type="button" data-save-project>Save changes</button><button class="button danger small" type="button" data-delete-project>Delete</button></div>
+          </div>
+        </article>`;
+      }).join("") : `<div class="empty-state"><strong>No projects match these filters</strong>Clear the filters or add a new project submission.</div>`;
+    }
+
+    function populateSubmissionForm() {
+      document.getElementById("submit-school").innerHTML = `<option value="">Select a school</option>${portal.schools.map(school => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)}</option>`).join("")}`;
+      document.getElementById("submit-session").innerHTML = Array.from({ length: 8 }, (_, index) => index + 1).map(session => `<option value="${session}" ${session === 2 ? "selected" : ""}>Session ${session}</option>`).join("");
+      document.getElementById("submit-status").innerHTML = STATUS_OPTIONS.map(status => `<option value="${escapeHtml(status)}" ${status === "In progress" ? "selected" : ""}>${escapeHtml(status)}</option>`).join("");
+    }
+
+    function renderDataPage() {
+      document.getElementById("school-editor-grid").innerHTML = portal.schools.map(school => `<form class="school-editor" data-school-editor="${escapeHtml(school.id)}">
+        <div class="school-editor-head"><span class="school-avatar" style="background:${school.accent}">${escapeHtml(school.shortName)}</span><div><h3>${escapeHtml(school.name)}</h3><small style="color:var(--muted)">${portal.projects.filter(project => project.schoolId === school.id).length} project records</small></div></div>
+        <label><span class="label-text">School name</span><input name="name" required maxlength="120" value="${escapeHtml(school.name)}"></label>
+        <div class="form-grid two"><label><span class="label-text">Short name</span><input name="shortName" required maxlength="8" value="${escapeHtml(school.shortName)}"></label><label><span class="label-text">Target teams</span><input name="targetTeams" type="number" min="1" max="100" value="${school.targetTeams}"></label></div>
+        <button class="button secondary small" type="submit">Save school details</button>
+      </form>`).join("");
+      const schoolOptions = portal.schools.map(school => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)}</option>`).join("");
+      document.getElementById("export-school-select").innerHTML = schoolOptions;
+    }
+
+    function renderAll() {
+      renderShowcase();
+      renderVoting();
+      if (activeView === "dashboard") renderDashboard();
+      if (activeView === "data") renderDataPage();
+      if (activeView === "submit") populateSubmissionForm();
+    }
+
+    function openProjectDialog(id) {
+      const project = portal.projects.find(item => item.id === id);
+      if (!project) return;
+      const school = schoolFor(project);
+      const webLink = safeWebUrl(project.makecodeUrl);
+      document.getElementById("dialog-content").innerHTML = `<img class="dialog-image" src="${escapeHtml(safeImageUrl(project.thumbnailUrl))}" alt="${escapeHtml(project.gameTitle)} game artwork"><div class="dialog-body"><span class="status-pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span><h2 id="dialog-title">${escapeHtml(project.gameTitle)}</h2><div class="dialog-meta"><span>${escapeHtml(school?.name || "Unknown school")}</span><span>${escapeHtml(project.teamName)}</span><span>Session ${project.currentSession} of 8</span><span>${project.progress}% complete</span></div><p>${escapeHtml(project.description || "No project description has been added.")}</p><p><strong>Learning topic:</strong> ${escapeHtml(project.learningTopic)}</p><div class="dialog-actions">${webLink ? `<a class="button primary small" href="${escapeHtml(webLink)}" target="_blank" rel="noreferrer">Open MakeCode game ↗</a>` : ""}<button class="button neutral small" type="button" data-close-dialog>Close</button></div></div>`;
+      const dialog = document.getElementById("project-dialog");
+      if (typeof dialog.showModal === "function") dialog.showModal();
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 3200);
+    }
+
+    function setSubmitMessage(type, message) {
+      const target = document.getElementById("submit-message");
+      target.className = message ? `message ${type}` : "";
+      target.textContent = message;
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Could not read the image file."));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function downloadBlob(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function dateStamp() { return new Date().toISOString().slice(0, 10); }
+    function packageData(data, scope) {
+      return { app: "EP Student Project Showcase Offline", version: PACKAGE_VERSION, exportedAt: new Date().toISOString(), scope, schools: data.schools, projects: data.projects, votes: data.votes || [] };
+    }
+    function exportAll() {
+      downloadBlob(`Student_Project_Showcase_Master_${dateStamp()}.json`, JSON.stringify(packageData(portal, "all-schools"), null, 2), "application/json");
+      showToast("Master backup exported.");
+    }
+    function exportSchool() {
+      const schoolId = document.getElementById("export-school-select").value;
+      const school = portal.schools.find(item => item.id === schoolId);
+      if (!school) return;
+      const votes = validVotes().filter(vote => vote.schoolId === schoolId);
+      const referencedIds = new Set(votes.flatMap(vote => [vote.projectId, vote.ownProjectId]));
+      const projects = portal.projects.filter(project => project.schoolId === schoolId || referencedIds.has(project.id));
+      const referencedSchools = new Set(projects.map(project => project.schoolId));
+      referencedSchools.add(schoolId);
+      const data = { schools: portal.schools.filter(s => referencedSchools.has(s.id)), projects, votes };
+      const safeName = school.name.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
+      downloadBlob(`${safeName || "School"}_Projects_${dateStamp()}.json`, JSON.stringify(packageData(data, `school:${schoolId}`), null, 2), "application/json");
+      showToast(`${school.name} handover file exported.`);
+    }
+    function exportCsv() {
+      const headers = ["School", "Team", "Game Title", "Learning Topic", "Status", "Progress", "Session", "MakeCode URL", "Trainer Feedback", "Updated At"];
+      const quote = value => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const rows = portal.projects.map(project => {
+        const school = schoolFor(project);
+        return [school?.name || "", project.teamName, project.gameTitle, project.learningTopic, project.status, project.progress, project.currentSession, project.makecodeUrl, project.trainerFeedback, project.updatedAt].map(quote).join(",");
+      });
+      downloadBlob(`Student_Project_Records_${dateStamp()}.csv`, `\ufeff${headers.map(quote).join(",")}\r\n${rows.join("\r\n")}`, "text/csv;charset=utf-8");
+      showToast("Project CSV exported.");
+    }
+
+    function mergeImported(imported) {
+      const schoolMap = new Map(portal.schools.map(school => [school.id, school]));
+      imported.schools.forEach(school => schoolMap.set(school.id, { ...(schoolMap.get(school.id) || {}), ...school }));
+      const projectMap = new Map(portal.projects.map(project => [project.id, project]));
+      imported.projects.forEach(project => {
+        const existing = projectMap.get(project.id);
+        if (!existing || new Date(project.updatedAt) >= new Date(existing.updatedAt)) projectMap.set(project.id, project);
+      });
+      return normaliseData({ schools: [...schoolMap.values()], projects: [...projectMap.values()], votes: [...(portal.votes || []), ...(imported.votes || [])] });
+    }
+
+    async function importSelectedFile() {
+      const file = document.getElementById("import-file").files[0];
+      if (!file) { showToast("Choose a JSON backup file first."); return; }
+      const mode = document.getElementById("import-mode").value;
+      if (mode === "replace" && !confirm("Replace all data on this computer with the selected backup? Export a backup first if you may need the current records.")) return;
+      try {
+        const imported = normaliseData(JSON.parse(await file.text()));
+        portal = mode === "merge" ? mergeImported(imported) : imported;
+        if (!persist()) return;
+        renderAll();
+        document.getElementById("import-file").value = "";
+        showToast(mode === "merge" ? "Backup merged into this computer." : "Local data replaced from backup.");
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Could not import this backup.");
+      }
+    }
+
+    document.getElementById("voter-school").addEventListener("change", () => { activeVoter=null; renderOwnProjects(); document.getElementById("ballot-form").hidden=true; });
+    for (const id of ["voter-code", "voter-own-project"]) document.getElementById(id).addEventListener("input", () => { activeVoter=null; document.getElementById("ballot-form").hidden=true; });
+    document.getElementById("voter-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const schoolId = document.getElementById("voter-school").value;
+      const studentCode = document.getElementById("voter-code").value.trim().toUpperCase();
+      const ownProjectId = document.getElementById("voter-own-project").value;
+      if (!/^[A-Z0-9_-]{1,32}$/.test(studentCode) || !portal.projects.some(p => p.id === ownProjectId && p.schoolId === schoolId)) {showToast("Choose your school, code and own team first.");return;}
+      document.getElementById("voter-code").value = studentCode;
+      activeVoter = {schoolId, studentCode, ownProjectId};
+      renderVoting();
+      document.getElementById("ballot-form").scrollIntoView({behavior:"smooth", block:"start"});
+    });
+    document.getElementById("next-voter").addEventListener("click", () => {activeVoter=null; pendingVoteProject=null; document.getElementById("voter-form").reset(); renderVoting(); document.getElementById("voter-code").focus();});
+    document.getElementById("ballot-form").addEventListener("submit", event => {
+      event.preventDefault();
+      if (!activeVoter) {showToast("Enter your student code and team first.");return;}
+      const projectId = new FormData(event.currentTarget).get("favourite");
+      const project = portal.projects.find(p => p.id === projectId && p.status === "Published");
+      if (!project || isOwnTeam(project)) {showToast("Choose a published project from another team.");return;}
+      const key = voteKey(activeVoter.schoolId, activeVoter.studentCode);
+      const previous = portal.votes || [];
+      // Refresh existing votes before saving, so another tab's votes are preserved.
+      try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) portal = mergeImported(normaliseData(JSON.parse(saved))); } catch {}
+      portal.votes = validVotes().filter(v => voteKey(v.schoolId, v.studentCode) !== key);
+      portal.votes.push({...activeVoter, projectId:project.id, updatedAt:new Date().toISOString()});
+      if (!persist()) {portal.votes=previous;return;}
+      renderAll();showToast(`Vote saved for ${project.gameTitle}. Use Next student when finished.`);
+    });
+    document.getElementById("export-vote-results").addEventListener("click", () => {
+      const quote = value => { const text=String(value ?? ''); return '"' + (/^[=+@-]/.test(text) ? '\u0027' : '') + text.replace(/"/g, '""') + '"'; };
+      const rows = portal.projects.filter(p => p.status === "Published").sort((a,b) => voteCount(b.id)-voteCount(a.id)).map(p => [p.gameTitle, schoolFor(p)?.name, p.teamName, voteCount(p.id)].map(quote).join(","));
+      downloadBlob(`Student_Choice_Results_${dateStamp()}.csv`, '\ufeffProject,School,Team,Votes\r\n'+rows.join('\r\n'), 'text/csv;charset=utf-8');
+    });
+    window.addEventListener("storage", event => {if(event.key === STORAGE_KEY) {portal=loadData();renderAll();}});
+
+    document.addEventListener("click", event => {
+      const voteButton = event.target.closest("[data-vote-project]");
+      if (voteButton) { pendingVoteProject=voteButton.dataset.voteProject; setView("voting"); return; }
+      const viewButton = event.target.closest("[data-view-target]");
+      if (viewButton) { setView(viewButton.dataset.viewTarget); return; }
+      const detailButton = event.target.closest("[data-project-details]");
+      if (detailButton) { openProjectDialog(detailButton.dataset.projectDetails); return; }
+      const schoolButton = event.target.closest("[data-school-dashboard]");
+      if (schoolButton) { filters.school = schoolButton.dataset.schoolDashboard; filters.query = ""; filters.status = "all"; setView("dashboard"); return; }
+      if (event.target.closest("[data-close-dialog]")) document.getElementById("project-dialog").close();
+    });
+
+    document.getElementById("project-dialog").addEventListener("click", event => {
+      if (event.target === event.currentTarget) event.currentTarget.close();
+    });
+
+    document.getElementById("filter-query").addEventListener("input", event => { filters.query = event.target.value; renderProjectList(); });
+    document.getElementById("filter-school").addEventListener("change", event => { filters.school = event.target.value; renderProjectList(); });
+    document.getElementById("filter-status").addEventListener("change", event => { filters.status = event.target.value; renderProjectList(); });
+    document.getElementById("clear-filters").addEventListener("click", () => { filters.query = ""; filters.school = "all"; filters.status = "all"; renderDashboard(); });
+
+    document.getElementById("project-monitor-list").addEventListener("input", event => {
+      if (event.target.matches('input[data-field="progress"]')) event.target.closest(".range-field").querySelector("[data-range-output]").textContent = `${event.target.value}%`;
+    });
+    document.getElementById("project-monitor-list").addEventListener("click", event => {
+      const row = event.target.closest("[data-project-row]");
+      if (!row) return;
+      const id = row.dataset.projectRow;
+      if (event.target.closest("[data-save-project]")) {
+        const project = portal.projects.find(item => item.id === id);
+        if (!project) return;
+        project.status = row.querySelector('[data-field="status"]').value;
+        project.currentSession = Number(row.querySelector('[data-field="currentSession"]').value);
+        project.progress = Number(row.querySelector('[data-field="progress"]').value);
+        project.trainerFeedback = cleanText(row.querySelector('[data-field="trainerFeedback"]').value, 500);
+        project.updatedAt = new Date().toISOString();
+        if (persist()) { renderAll(); showToast(`${project.gameTitle} saved on this computer.`); }
+      }
+      if (event.target.closest("[data-delete-project]")) {
+        const project = portal.projects.find(item => item.id === id);
+        if (project && confirm(`Delete “${project.gameTitle}” from this computer? This cannot be undone unless it exists in an exported backup.`)) {
+          portal.projects = portal.projects.filter(item => item.id !== id);
+          portal.votes = validVotes();
+          if (persist()) { renderAll(); showToast("Project deleted."); }
+        }
+      }
+    });
+
+    document.getElementById("submit-progress").addEventListener("input", event => { document.getElementById("submit-progress-value").textContent = `${event.target.value}%`; });
+    document.getElementById("project-form").addEventListener("reset", event => {
+      if (event.isTrusted) setSubmitMessage("", "");
+      setTimeout(() => { document.getElementById("submit-progress-value").textContent = "25%"; populateSubmissionForm(); }, 0);
+    });
+    document.getElementById("project-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const thumbnailFile = formData.get("thumbnailFile");
+      try {
+        let thumbnailUrl = "assets/hero-game-scene.png";
+        if (thumbnailFile instanceof File && thumbnailFile.size) {
+          if (thumbnailFile.size > 1024 * 1024) throw new Error("The thumbnail is larger than 1 MB. Choose a smaller image.");
+          if (!["image/png", "image/jpeg", "image/webp"].includes(thumbnailFile.type)) throw new Error("Use a PNG, JPG or WebP thumbnail.");
+          thumbnailUrl = await fileToDataUrl(thumbnailFile);
+        }
+        const project = {
+          id: projectId(),
+          schoolId: String(formData.get("schoolId")),
+          teamName: cleanText(formData.get("teamName"), 80),
+          gameTitle: cleanText(formData.get("gameTitle"), 120),
+          learningTopic: cleanText(formData.get("learningTopic"), 100),
+          description: cleanText(formData.get("description"), 600),
+          makecodeUrl: safeWebUrl(formData.get("makecodeUrl")),
+          thumbnailUrl,
+          status: STATUS_OPTIONS.includes(formData.get("status")) ? formData.get("status") : "In progress",
+          progress: clampNumber(formData.get("progress"), 0, 100, 25),
+          currentSession: clampNumber(formData.get("currentSession"), 1, 8, 2),
+          trainerFeedback: "",
+          updatedAt: new Date().toISOString()
+        };
+        portal.projects.unshift(project);
+        if (!persist()) { portal.projects.shift(); throw new Error("The project could not be stored. Export a backup and remove large images before trying again."); }
+        form.reset();
+        renderAll();
+        setSubmitMessage("success", "Project saved. It is now available in the monitoring dashboard on this computer.");
+      } catch (error) {
+        setSubmitMessage("error", error instanceof Error ? error.message : "The project could not be saved.");
+      }
+    });
+
+    document.getElementById("school-editor-grid").addEventListener("submit", event => {
+      event.preventDefault();
+      const form = event.target.closest("[data-school-editor]");
+      const school = portal.schools.find(item => item.id === form.dataset.schoolEditor);
+      if (!school) return;
+      const formData = new FormData(form);
+      school.name = cleanText(formData.get("name"), 120) || school.name;
+      school.shortName = (cleanText(formData.get("shortName"), 8) || school.shortName).toUpperCase();
+      school.targetTeams = clampNumber(formData.get("targetTeams"), 1, 100, school.targetTeams);
+      if (persist()) { renderAll(); showToast(`${school.name} updated.`); }
+    });
+
+    document.getElementById("export-all").addEventListener("click", exportAll);
+    document.getElementById("export-school").addEventListener("click", exportSchool);
+    document.getElementById("export-csv").addEventListener("click", exportCsv);
+    document.getElementById("import-data").addEventListener("click", importSelectedFile);
+    document.getElementById("clear-projects").addEventListener("click", () => {
+      if (!confirm("Remove every project from this computer? School names will remain. Export a backup first if needed.")) return;
+      portal.projects = [];
+      portal.votes = [];
+      if (persist()) { renderAll(); showToast("All project records removed."); }
+    });
+    document.getElementById("reset-sample").addEventListener("click", () => {
+      if (!confirm("Restore the original sample schools and projects? This replaces all data currently stored on this computer.")) return;
+      portal = clone(SAMPLE_DATA);
+      if (persist()) { filters.query = ""; filters.school = "all"; filters.status = "all"; renderAll(); showToast("Sample data restored."); }
+    });
+
+    const initialHash = location.hash.replace("#", "");
+    renderAll();
+    populateSubmissionForm();
+    setView(["showcase", "voting", "dashboard", "submit", "data"].includes(initialHash) ? initialHash : "showcase", { keepScroll: true });
+  </script>
+</body>
+</html>
