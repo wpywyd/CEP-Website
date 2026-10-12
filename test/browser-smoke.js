@@ -28,9 +28,20 @@ try {
       if (r.status() >= 500) responses.push(`${r.status()} ${r.url()}`);
     });
   }
+  const publicPage = await browser.newPage();
+  inspect(publicPage);
+  await publicPage.goto(origin);
+  assert.equal(await publicPage.locator('nav a[href*="teacher"]').count(), 0);
+  await publicPage.goto(`${origin}/#teacher`);
+  assert.equal(await publicPage.locator('#showcase').isVisible(), true);
+  assert.equal(await publicPage.locator('#teacher').isVisible(), false);
+
   const teacher = await browser.newPage();
   inspect(teacher);
-  await teacher.goto(`${origin}/#teacher`);
+  const teacherResponse = await teacher.goto(`${origin}/teacher`);
+  assert.equal(teacherResponse.headers()['x-robots-tag'], 'noindex, nofollow');
+  assert.equal(await teacher.locator('#login-form').isVisible(), true);
+  assert.equal(await teacher.locator('#workspace').isVisible(), false);
   await teacher.locator('#login-form [name="username"]').fill('admin');
   await teacher.locator('#login-form [name="password"]').fill(password);
   await teacher.locator('#login-form button[type="submit"]').click();

@@ -210,7 +210,6 @@ async function loadManagement() {
     management = await api('/api/manage');
     $('login-form').hidden = true;
     $('workspace').hidden = false;
-    $('teacher-link').textContent = 'Teacher workspace';
     $('account-label').textContent =
       `${management.user.username} · ${management.user.schoolId ? schoolName(management.user.schoolId) : 'Programme administrator'}`;
     stats('teacher-stats', [
@@ -231,7 +230,6 @@ async function loadManagement() {
       management = null;
       $('login-form').hidden = false;
       $('workspace').hidden = true;
-      $('teacher-link').textContent = 'Teacher sign in';
     } else message('workspace-message', error.message, true);
   }
 }
@@ -357,12 +355,13 @@ async function loadSchools() {
 }
 async function navigate() {
   const hash = location.hash.slice(1);
-  const route = ['vote', 'teacher'].includes(hash) ? hash : 'showcase';
+  const isTeacherPage = location.pathname === '/teacher' || location.pathname === '/teacher/';
+  const route = isTeacherPage ? 'teacher' : hash === 'vote' ? 'vote' : 'showcase';
   for (const name of ['showcase', 'vote', 'teacher']) $(name).hidden = name !== route;
   document
     .querySelectorAll('nav a')
     .forEach((a) =>
-      a.getAttribute('href') === `#${route}`
+      a.getAttribute('href') === (route === 'vote' ? '/#vote' : '/')
         ? a.setAttribute('aria-current', 'page')
         : a.removeAttribute('aria-current')
     );
@@ -473,7 +472,6 @@ $('logout').addEventListener('click', async () => {
     $('workspace').hidden = true;
     $('login-form').hidden = false;
     $('students-list').replaceChildren();
-    $('teacher-link').textContent = 'Teacher sign in';
   } catch (error) {
     message('workspace-message', error.message, true);
   }

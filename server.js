@@ -199,6 +199,8 @@ export function createApp({
         if (req.method !== 'GET' && req.method !== 'HEAD') fail(405, 'Method not allowed.');
         const files = {
           '/': ['index.html', 'text/html'],
+          '/teacher': ['index.html', 'text/html'],
+          '/teacher/': ['index.html', 'text/html'],
           '/app.js': ['app.js', 'text/javascript'],
           '/style.css': ['style.css', 'text/css'],
           '/school-search.css': ['school-search.css', 'text/css'],
@@ -207,6 +209,9 @@ export function createApp({
         const file = files[path];
         if (!file) fail(404, 'Page not found.');
         const content = await readFile(resolve(root, 'public', file[0]));
+        if (path === '/teacher' || path === '/teacher/') {
+          res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
         res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` });
         res.end(req.method === 'HEAD' ? undefined : content);
         return;
