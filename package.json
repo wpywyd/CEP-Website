@@ -12,9 +12,12 @@
     "teacher": "node teacher.js",
     "test": "node --test test/*.test.js",
     "test:browser": "node test/browser-smoke.js",
-    "backup": "node backup.js"
+    "backup": "node backup.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "playwright-core": "1.58.2"
+    "playwright-core": "1.58.2",
+    "prettier": "3.6.2"
   }
 }

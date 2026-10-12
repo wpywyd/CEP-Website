@@ -4,8 +4,15 @@ import { dirname } from 'node:path';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 import { SECONDARY_SCHOOLS } from './school-directory.js';
 
-export const STATUSES = ['Not started', 'In progress', 'Ready to review', 'Changes requested', 'Approved', 'Published'];
-export const hash = value => createHash('sha256').update(value).digest('hex');
+export const STATUSES = [
+  'Not started',
+  'In progress',
+  'Ready to review',
+  'Changes requested',
+  'Approved',
+  'Published'
+];
+export const hash = (value) => createHash('sha256').update(value).digest('hex');
 export function passwordHash(password) {
   const salt = randomBytes(16).toString('hex');
   return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
@@ -17,8 +24,16 @@ export function passwordMatches(password, encoded) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 export function validateNewPassword(password) {
-  if (typeof password !== 'string' || password.length < 8 || password.length > 128 || !/\p{L}/u.test(password) || !/\p{N}/u.test(password)) {
-    throw new Error('Use 8–128 characters with at least one letter and one number. Symbols are optional.');
+  if (
+    typeof password !== 'string' ||
+    password.length < 8 ||
+    password.length > 128 ||
+    !/\p{L}/u.test(password) ||
+    !/\p{N}/u.test(password)
+  ) {
+    throw new Error(
+      'Use 8–128 characters with at least one letter and one number. Symbols are optional.'
+    );
   }
   return password;
 }
@@ -69,23 +84,36 @@ export function openStore(filename) {
   if (!db.prepare("SELECT 1 FROM pragma_table_info('schools') WHERE name='is_active'").get()) {
     db.exec('ALTER TABLE schools ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
   }
-  db.prepare("UPDATE schools SET is_active=0 WHERE id GLOB 'school-[1-9]' AND name GLOB 'School [1-9]'").run();
-  const seed = db.prepare('INSERT INTO schools (id, name, short_name, is_active) VALUES (?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, short_name=excluded.short_name, is_active=1');
+  db.prepare(
+    "UPDATE schools SET is_active=0 WHERE id GLOB 'school-[1-9]' AND name GLOB 'School [1-9]'"
+  ).run();
+  const seed = db.prepare(
+    'INSERT INTO schools (id, name, short_name, is_active) VALUES (?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, short_name=excluded.short_name, is_active=1'
+  );
   for (const school of SECONDARY_SCHOOLS) seed.run(school.id, school.name, school.shortName);
-  db.prepare("INSERT OR IGNORE INTO voting_rounds VALUES ('round-1', 'Student Choice Award', 1, ?)").run(new Date().toISOString());
+  db.prepare(
+    "INSERT OR IGNORE INTO voting_rounds VALUES ('round-1', 'Student Choice Award', 1, ?)"
+  ).run(new Date().toISOString());
   return db;
 }
 export function provisionTeacher(db, username, password, schoolId = null) {
-  if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('Username must be 3–64 lowercase letters, numbers, dots, underscores or hyphens.');
+  if (!/^[a-z0-9._-]{3,64}$/.test(username))
+    throw new Error(
+      'Username must be 3–64 lowercase letters, numbers, dots, underscores or hyphens.'
+    );
   validateNewPassword(password);
-  if (schoolId && !db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId)) throw new Error('Unknown or inactive school.');
+  if (schoolId && !db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId))
+    throw new Error('Unknown or inactive school.');
   const existing = db.prepare('SELECT id FROM teachers WHERE username=?').get(username);
   const id = existing?.id || randomBytes(16).toString('hex');
-  db.prepare(`INSERT INTO teachers VALUES (?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, school_id=excluded.school_id`).run(id, username, passwordHash(password), schoolId);
+  db.prepare(
+    `INSERT INTO teachers VALUES (?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, school_id=excluded.school_id`
+  ).run(id, username, passwordHash(password), schoolId);
   db.prepare('DELETE FROM sessions WHERE teacher_id=?').run(id);
   return id;
 }
 
 // The original spelling is retained for teachers; only the duplicate key is folded.
-export const normaliseIdentity = value => value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase();
-export const displayName = value => value.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+export const normaliseIdentity = (value) =>
+  value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase();
+export const displayName = (value) => value.normalize('NFKC').trim().replace(/\s+/gu, ' ');

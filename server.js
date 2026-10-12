@@ -3,27 +3,71 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { openStore, hash, passwordHash, passwordMatches, validateNewPassword, STATUSES, normaliseIdentity, displayName } from './store.js';
+import {
+  openStore,
+  hash,
+  passwordHash,
+  passwordMatches,
+  validateNewPassword,
+  STATUSES,
+  normaliseIdentity,
+  displayName
+} from './store.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
-class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
-const fail = (status, message) => { throw new HttpError(status, message); };
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+const fail = (status, message) => {
+  throw new HttpError(status, message);
+};
 const text = (value, max, required = false) => {
-  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) fail(400, 'Invalid or missing text field.');
+  if (typeof value !== 'string' || value.length > max || (required && !value.trim()))
+    fail(400, 'Invalid or missing text field.');
   return value.trim();
 };
 function projectInput(body) {
   const url = text(body.makecodeUrl ?? '', 500);
   if (url) {
-    let parsed; try { parsed = new URL(url); } catch { fail(400, 'Enter a valid MakeCode link.'); }
-    if (parsed.protocol !== 'https:' || parsed.hostname !== 'arcade.makecode.com' || parsed.username || parsed.password || parsed.port) fail(400, 'Use an HTTPS arcade.makecode.com link.');
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      fail(400, 'Enter a valid MakeCode link.');
+    }
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.hostname !== 'arcade.makecode.com' ||
+      parsed.username ||
+      parsed.password ||
+      parsed.port
+    )
+      fail(400, 'Use an HTTPS arcade.makecode.com link.');
   }
   if (!STATUSES.includes(body.status)) fail(400, 'Unknown project status.');
-  if (!Number.isInteger(body.progress) || body.progress < 0 || body.progress > 100 || !Number.isInteger(body.currentSession) || body.currentSession < 1 || body.currentSession > 8) fail(400, 'Invalid progress or session.');
+  if (
+    !Number.isInteger(body.progress) ||
+    body.progress < 0 ||
+    body.progress > 100 ||
+    !Number.isInteger(body.currentSession) ||
+    body.currentSession < 1 ||
+    body.currentSession > 8
+  )
+    fail(400, 'Invalid progress or session.');
   return {
-    schoolId: text(body.schoolId, 80, true), teamName: text(body.teamName, 80, true), gameTitle: text(body.gameTitle, 120, true),
-    learningTopic: text(body.learningTopic, 100, true), description: text(body.description ?? '', 600), makecodeUrl: url,
-    status: body.status, progress: body.progress, currentSession: body.currentSession, trainerFeedback: text(body.trainerFeedback ?? '', 500)
+    schoolId: text(body.schoolId, 80, true),
+    teamName: text(body.teamName, 80, true),
+    gameTitle: text(body.gameTitle, 120, true),
+    learningTopic: text(body.learningTopic, 100, true),
+    description: text(body.description ?? '', 600),
+    makecodeUrl: url,
+    status: body.status,
+    progress: body.progress,
+    currentSession: body.currentSession,
+    trainerFeedback: text(body.trainerFeedback ?? '', 500)
   };
 }
 const projectSelect = `SELECT p.id, p.school_id AS schoolId, p.team_name AS teamName, p.game_title AS gameTitle,
@@ -31,74 +75,141 @@ const projectSelect = `SELECT p.id, p.school_id AS schoolId, p.team_name AS team
  p.current_session AS currentSession, p.trainer_feedback AS trainerFeedback, p.updated_at AS updatedAt, p.revision,
  (SELECT count(*) FROM student_votes v JOIN voting_rounds r ON r.id=v.round_id WHERE v.project_id=p.id AND r.id=(SELECT id FROM voting_rounds ORDER BY is_open DESC, created_at DESC, rowid DESC LIMIT 1)) AS votes FROM projects p`;
 
-export function createApp({ database = resolve(process.env.DATA_DIR || 'data', 'portal.sqlite'), secureCookies = process.env.NODE_ENV === 'production', publicOrigin = process.env.PUBLIC_ORIGIN || '' } = {}) {
-  if (secureCookies && !/^https:\/\/[^/]+$/.test(publicOrigin)) throw new Error('Production requires PUBLIC_ORIGIN as your HTTPS site origin, without a trailing slash.');
+export function createApp({
+  database = resolve(process.env.DATA_DIR || 'data', 'portal.sqlite'),
+  secureCookies = process.env.NODE_ENV === 'production',
+  publicOrigin = process.env.PUBLIC_ORIGIN || ''
+} = {}) {
+  if (secureCookies && !/^https:\/\/[^/]+$/.test(publicOrigin))
+    throw new Error(
+      'Production requires PUBLIC_ORIGIN as your HTTPS site origin, without a trailing slash.'
+    );
   const db = openStore(database);
   const dummyHash = passwordHash(randomBytes(24).toString('hex'));
   function limit(key, maximum, windowMs) {
     const now = Date.now();
     db.prepare('DELETE FROM rate_limits WHERE expires < ?').run(now);
-    db.prepare(`INSERT INTO rate_limits VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count=count+1`).run(key, now + windowMs);
+    db.prepare(
+      `INSERT INTO rate_limits VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count=count+1`
+    ).run(key, now + windowMs);
     const row = db.prepare('SELECT count FROM rate_limits WHERE key=?').get(key);
     if (row.count > maximum) fail(429, 'Too many attempts. Please try again later.');
   }
   function teacher(req) {
     const token = /(?:^|;\s*)cep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
     if (!token) fail(401, 'Please sign in as a teacher.');
-    const user = db.prepare(`SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>?`).get(hash(token), Date.now());
+    const user = db
+      .prepare(
+        `SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>?`
+      )
+      .get(hash(token), Date.now());
     if (!user) fail(401, 'Your session expired. Please sign in again.');
     return user;
   }
-  function canManage(user, schoolId) { if (user.schoolId && user.schoolId !== schoolId) fail(403, 'This school is outside your account access.'); }
-  function getProject(id) { const p = db.prepare(`${projectSelect} WHERE p.id=?`).get(id); if (!p) fail(404, 'Project not found.'); return p; }
+  function canManage(user, schoolId) {
+    if (user.schoolId && user.schoolId !== schoolId)
+      fail(403, 'This school is outside your account access.');
+  }
+  function getProject(id) {
+    const p = db.prepare(`${projectSelect} WHERE p.id=?`).get(id);
+    if (!p) fail(404, 'Project not found.');
+    return p;
+  }
   function student(req) {
     const token = /(?:^|;\s*)cep_student=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
     if (!token) fail(401, 'Please sign in as a student.');
-    const user = db.prepare(`SELECT u.id, u.username, u.school_id AS schoolId, u.class_id AS classId, u.full_name AS fullName FROM student_sessions s JOIN students u ON u.id=s.student_id WHERE s.token_hash=? AND s.expires>?`).get(hash(token), Date.now());
+    const user = db
+      .prepare(
+        `SELECT u.id, u.username, u.school_id AS schoolId, u.class_id AS classId, u.full_name AS fullName FROM student_sessions s JOIN students u ON u.id=s.student_id WHERE s.token_hash=? AND s.expires>?`
+      )
+      .get(hash(token), Date.now());
     if (!user) fail(401, 'Your session expired. Please sign in again.');
     return user;
   }
   function studentCookie(res, token, expires = 28800) {
-    res.setHeader('Set-Cookie', `cep_student=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${expires}${secureCookies ? '; Secure' : ''}`);
+    res.setHeader(
+      'Set-Cookie',
+      `cep_student=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${expires}${secureCookies ? '; Secure' : ''}`
+    );
   }
   function startStudentSession(res, id) {
     db.prepare('DELETE FROM student_sessions WHERE expires < ?').run(Date.now());
     const token = randomBytes(32).toString('hex');
-    db.prepare('INSERT INTO student_sessions VALUES (?, ?, ?)').run(hash(token), id, Date.now() + 8 * 60 * 60_000);
+    db.prepare('INSERT INTO student_sessions VALUES (?, ?, ?)').run(
+      hash(token),
+      id,
+      Date.now() + 8 * 60 * 60_000
+    );
     studentCookie(res, token);
   }
-  const latestRound = () => db.prepare('SELECT id, name, is_open AS isOpen FROM voting_rounds ORDER BY is_open DESC, created_at DESC, rowid DESC LIMIT 1').get();
+  const latestRound = () =>
+    db
+      .prepare(
+        'SELECT id, name, is_open AS isOpen FROM voting_rounds ORDER BY is_open DESC, created_at DESC, rowid DESC LIMIT 1'
+      )
+      .get();
   function passwordValue(value, isNew = true) {
-    if (typeof value !== 'string' || !value.length || value.length > 256) fail(400, 'Enter a valid password.');
+    if (typeof value !== 'string' || !value.length || value.length > 256)
+      fail(400, 'Enter a valid password.');
     if (isNew) {
-      try { validateNewPassword(value); }
-      catch (error) { fail(400, error.message); }
+      try {
+        validateNewPassword(value);
+      } catch (error) {
+        fail(400, error.message);
+      }
     }
     return value;
   }
-  const json = (res, status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)); };
+  const json = (res, status, value) => {
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(value));
+  };
   async function body(req, maximum = 32_768) {
-    let size = 0; const chunks = [];
-    for await (const chunk of req) { size += chunk.length; if (size > maximum) fail(413, 'Request too large.'); chunks.push(chunk); }
-    if (!req.headers['content-type']?.startsWith('application/json')) fail(415, 'Send JSON content.');
-    try { const value = JSON.parse(Buffer.concat(chunks).toString()); if (!value || typeof value !== 'object' || Array.isArray(value)) fail(400, 'Invalid JSON object.'); return value; }
-    catch { fail(400, 'Invalid JSON object.'); }
+    let size = 0;
+    const chunks = [];
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > maximum) fail(413, 'Request too large.');
+      chunks.push(chunk);
+    }
+    if (!req.headers['content-type']?.startsWith('application/json'))
+      fail(415, 'Send JSON content.');
+    try {
+      const value = JSON.parse(Buffer.concat(chunks).toString());
+      if (!value || typeof value !== 'object' || Array.isArray(value))
+        fail(400, 'Invalid JSON object.');
+      return value;
+    } catch {
+      fail(400, 'Invalid JSON object.');
+    }
   }
   const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+    );
     res.setHeader('Cache-Control', 'no-store');
     if (secureCookies) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
       if (!path.startsWith('/api/')) {
         if (req.method !== 'GET' && req.method !== 'HEAD') fail(405, 'Method not allowed.');
-        const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'], '/school-search.css': ['school-search.css', 'text/css'], '/artwork.svg': ['artwork.svg', 'image/svg+xml'] };
-        const file = files[path]; if (!file) fail(404, 'Page not found.');
+        const files = {
+          '/': ['index.html', 'text/html'],
+          '/app.js': ['app.js', 'text/javascript'],
+          '/style.css': ['style.css', 'text/css'],
+          '/school-search.css': ['school-search.css', 'text/css'],
+          '/artwork.svg': ['artwork.svg', 'image/svg+xml']
+        };
+        const file = files[path];
+        if (!file) fail(404, 'Page not found.');
         const content = await readFile(resolve(root, 'public', file[0]));
-        res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` }); res.end(req.method === 'HEAD' ? undefined : content); return;
+        res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` });
+        res.end(req.method === 'HEAD' ? undefined : content);
+        return;
       }
       const mutating = !['GET', 'HEAD'].includes(req.method);
       if (mutating) {
@@ -107,181 +218,448 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
         if (req.headers['x-cep-request'] !== '1') fail(403, 'Missing request protection header.');
       }
       const ip = req.socket.remoteAddress; // Deliberately do not trust arbitrary forwarding headers.
-      if (path === '/api/health' && req.method === 'GET') { db.prepare('SELECT 1').get(); return json(res, 200, { ok: true }); }
+      if (path === '/api/health' && req.method === 'GET') {
+        db.prepare('SELECT 1').get();
+        return json(res, 200, { ok: true });
+      }
       if (path === '/api/showcase' && req.method === 'GET') {
-        const projects = db.prepare(`${projectSelect} WHERE p.status='Published' ORDER BY votes DESC, p.game_title`).all().map(({ trainerFeedback, revision, ...p }) => p);
-        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 OR id IN (SELECT school_id FROM projects) ORDER BY name').all(), projects, round: latestRound() });
+        const projects = db
+          .prepare(`${projectSelect} WHERE p.status='Published' ORDER BY votes DESC, p.game_title`)
+          .all()
+          .map(({ trainerFeedback, revision, ...p }) => p);
+        return json(res, 200, {
+          schools: db
+            .prepare(
+              'SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 OR id IN (SELECT school_id FROM projects) ORDER BY name'
+            )
+            .all(),
+          projects,
+          round: latestRound()
+        });
       }
       if (path === '/api/login' && req.method === 'POST') {
         limit(`login:${ip}`, 20, 15 * 60_000);
         const input = await body(req);
-        const username = text(input.username, 64, true).toLowerCase(); const password = passwordValue(input.password, false);
+        const username = text(input.username, 64, true).toLowerCase();
+        const password = passwordValue(input.password, false);
         const user = db.prepare('SELECT * FROM teachers WHERE username=?').get(username);
         const valid = passwordMatches(password, user?.password_hash || dummyHash);
         if (!user || !valid) fail(401, 'Username or password is incorrect.');
         db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now());
         const token = randomBytes(32).toString('hex');
-        db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(hash(token), user.id, Date.now() + 8 * 60 * 60_000);
-        res.setHeader('Set-Cookie', `cep_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookies ? '; Secure' : ''}`);
+        db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(
+          hash(token),
+          user.id,
+          Date.now() + 8 * 60 * 60_000
+        );
+        res.setHeader(
+          'Set-Cookie',
+          `cep_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookies ? '; Secure' : ''}`
+        );
         return json(res, 200, { username: user.username, schoolId: user.school_id });
       }
       if (path === '/api/logout' && req.method === 'POST') {
-        const token = /(?:^|;\s*)cep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
+        const token = /(?:^|;\s*)cep_session=([a-f0-9]{64})(?:;|$)/.exec(
+          req.headers.cookie || ''
+        )?.[1];
         if (token) db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(token));
-        res.setHeader('Set-Cookie', `cep_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookies ? '; Secure' : ''}`);
+        res.setHeader(
+          'Set-Cookie',
+          `cep_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookies ? '; Secure' : ''}`
+        );
         return json(res, 200, { ok: true });
       }
       if (path === '/api/me' && req.method === 'GET') return json(res, 200, teacher(req));
       if (path === '/api/manage' && req.method === 'GET') {
         const user = teacher(req);
-        const projects = db.prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''} ORDER BY p.updated_at DESC`).all(...(user.schoolId ? [user.schoolId] : []));
-        return json(res, 200, { user, statuses: STATUSES, schools: db.prepare(`SELECT id, name, short_name AS shortName, is_active AS isActive FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1 OR id IN (SELECT school_id FROM projects)'} ORDER BY name`).all(...(user.schoolId ? [user.schoolId] : [])), projects });
+        const projects = db
+          .prepare(
+            `${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''} ORDER BY p.updated_at DESC`
+          )
+          .all(...(user.schoolId ? [user.schoolId] : []));
+        return json(res, 200, {
+          user,
+          statuses: STATUSES,
+          schools: db
+            .prepare(
+              `SELECT id, name, short_name AS shortName, is_active AS isActive FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1 OR id IN (SELECT school_id FROM projects)'} ORDER BY name`
+            )
+            .all(...(user.schoolId ? [user.schoolId] : [])),
+          projects
+        });
       }
       if (path === '/api/projects' && req.method === 'POST') {
-        const user = teacher(req); const p = projectInput(await body(req)); canManage(user, p.schoolId);
-        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId)) fail(400, 'Unknown or inactive school.');
+        const user = teacher(req);
+        const p = projectInput(await body(req));
+        canManage(user, p.schoolId);
+        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId))
+          fail(400, 'Unknown or inactive school.');
         const id = randomBytes(16).toString('hex');
-        db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)').run(id, p.schoolId, p.teamName, p.gameTitle, p.learningTopic, p.description, p.makecodeUrl, p.status, p.progress, p.currentSession, p.trainerFeedback, new Date().toISOString());
+        db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)').run(
+          id,
+          p.schoolId,
+          p.teamName,
+          p.gameTitle,
+          p.learningTopic,
+          p.description,
+          p.makecodeUrl,
+          p.status,
+          p.progress,
+          p.currentSession,
+          p.trainerFeedback,
+          new Date().toISOString()
+        );
         return json(res, 201, getProject(id));
       }
       const projectRoute = /^\/api\/projects\/([a-f0-9]{32})$/.exec(path);
       if (projectRoute && ['PUT', 'DELETE'].includes(req.method)) {
-        const user = teacher(req); const existing = getProject(projectRoute[1]); canManage(user, existing.schoolId);
+        const user = teacher(req);
+        const existing = getProject(projectRoute[1]);
+        canManage(user, existing.schoolId);
         const input = await body(req);
-        if (input.revision !== existing.revision) fail(409, 'Another teacher changed this project. Refresh and try again.');
-        if (req.method === 'DELETE') { if (db.prepare('SELECT 1 FROM student_votes WHERE project_id=?').get(existing.id)) fail(409, 'A project with recorded votes cannot be deleted. Unpublish it instead.'); db.prepare('DELETE FROM projects WHERE id=?').run(existing.id); return json(res, 200, { ok: true }); }
-        const p = projectInput(input); canManage(user, p.schoolId);
-        if (p.schoolId !== existing.schoolId) fail(400, 'A project cannot be moved to another school.');
-        db.prepare('UPDATE projects SET team_name=?, game_title=?, learning_topic=?, description=?, makecode_url=?, status=?, progress=?, current_session=?, trainer_feedback=?, updated_at=?, revision=revision+1 WHERE id=?').run(p.teamName, p.gameTitle, p.learningTopic, p.description, p.makecodeUrl, p.status, p.progress, p.currentSession, p.trainerFeedback, new Date().toISOString(), existing.id);
+        if (input.revision !== existing.revision)
+          fail(409, 'Another teacher changed this project. Refresh and try again.');
+        if (req.method === 'DELETE') {
+          if (db.prepare('SELECT 1 FROM student_votes WHERE project_id=?').get(existing.id))
+            fail(409, 'A project with recorded votes cannot be deleted. Unpublish it instead.');
+          db.prepare('DELETE FROM projects WHERE id=?').run(existing.id);
+          return json(res, 200, { ok: true });
+        }
+        const p = projectInput(input);
+        canManage(user, p.schoolId);
+        if (p.schoolId !== existing.schoolId)
+          fail(400, 'A project cannot be moved to another school.');
+        db.prepare(
+          'UPDATE projects SET team_name=?, game_title=?, learning_topic=?, description=?, makecode_url=?, status=?, progress=?, current_session=?, trainer_feedback=?, updated_at=?, revision=revision+1 WHERE id=?'
+        ).run(
+          p.teamName,
+          p.gameTitle,
+          p.learningTopic,
+          p.description,
+          p.makecodeUrl,
+          p.status,
+          p.progress,
+          p.currentSession,
+          p.trainerFeedback,
+          new Date().toISOString(),
+          existing.id
+        );
         return json(res, 200, getProject(existing.id));
       }
       const schoolRoute = /^\/api\/schools\/(sg-[a-z0-9-]+|school-[1-9])$/.exec(path);
       if (schoolRoute && req.method === 'PUT') {
-        const user = teacher(req); canManage(user, schoolRoute[1]); const input = await body(req);
-        db.prepare('UPDATE schools SET name=?, short_name=? WHERE id=?').run(text(input.name, 120, true), text(input.shortName, 8, true), schoolRoute[1]);
+        const user = teacher(req);
+        canManage(user, schoolRoute[1]);
+        const input = await body(req);
+        db.prepare('UPDATE schools SET name=?, short_name=? WHERE id=?').run(
+          text(input.name, 120, true),
+          text(input.shortName, 8, true),
+          schoolRoute[1]
+        );
         return json(res, 200, { ok: true });
       }
       if (path === '/api/registration' && req.method === 'GET') {
-        return json(res, 200, { schools: db.prepare('SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 ORDER BY name').all(), classes: db.prepare('SELECT c.id, c.school_id AS schoolId, c.name FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.is_active=1 ORDER BY c.name').all() });
+        return json(res, 200, {
+          schools: db
+            .prepare(
+              'SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 ORDER BY name'
+            )
+            .all(),
+          classes: db
+            .prepare(
+              'SELECT c.id, c.school_id AS schoolId, c.name FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.is_active=1 ORDER BY c.name'
+            )
+            .all()
+        });
       }
       if (path === '/api/students/register' && req.method === 'POST') {
         limit(`register:${ip}`, 120, 60 * 60_000);
         const input = await body(req);
-        const schoolId = text(input.schoolId, 80, true); const classId = text(input.classId, 80, true);
-        if (!db.prepare('SELECT id FROM classes WHERE id=? AND school_id=?').get(classId, schoolId)) fail(400, 'Select a class belonging to your school.');
+        const schoolId = text(input.schoolId, 80, true);
+        const classId = text(input.classId, 80, true);
+        if (!db.prepare('SELECT id FROM classes WHERE id=? AND school_id=?').get(classId, schoolId))
+          fail(400, 'Select a class belonging to your school.');
         const fullName = displayName(text(input.fullName, 120, true));
-        if (!/^[\p{L}\p{M} .’'\-]+$/u.test(fullName) || !/\p{L}/u.test(fullName)) fail(400, 'Enter your full name as recorded by your school, using letters and name punctuation.');
-        if (input.fullNameConfirmed !== true) fail(400, 'Confirm that you entered your full name as recorded by your school.');
+        if (!/^[\p{L}\p{M} .’'\-]+$/u.test(fullName) || !/\p{L}/u.test(fullName))
+          fail(
+            400,
+            'Enter your full name as recorded by your school, using letters and name punctuation.'
+          );
+        if (input.fullNameConfirmed !== true)
+          fail(400, 'Confirm that you entered your full name as recorded by your school.');
         const username = text(input.username, 64, true).toLowerCase();
-        if (!/^[a-z0-9._-]{3,64}$/.test(username)) fail(400, 'Username must be 3–64 letters, numbers, dots, underscores or hyphens.');
+        if (!/^[a-z0-9._-]{3,64}$/.test(username))
+          fail(400, 'Username must be 3–64 letters, numbers, dots, underscores or hyphens.');
         const password = passwordValue(input.password);
         const nameKey = normaliseIdentity(fullName);
-        const duplicate = () => db.prepare('SELECT id FROM students WHERE school_id=? AND class_id=? AND name_key=?').get(schoolId, classId, nameKey);
-        if (duplicate()) fail(409, 'An account is already registered with these school, class and full-name details. Sign in or contact your teacher.');
-        if (db.prepare('SELECT id FROM students WHERE username=?').get(username)) fail(409, 'That username is already taken. Choose another username.');
+        const duplicate = () =>
+          db
+            .prepare('SELECT id FROM students WHERE school_id=? AND class_id=? AND name_key=?')
+            .get(schoolId, classId, nameKey);
+        if (duplicate())
+          fail(
+            409,
+            'An account is already registered with these school, class and full-name details. Sign in or contact your teacher.'
+          );
+        if (db.prepare('SELECT id FROM students WHERE username=?').get(username))
+          fail(409, 'That username is already taken. Choose another username.');
         const id = randomBytes(16).toString('hex');
-        try { db.prepare('INSERT INTO students VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, username, passwordHash(password), schoolId, classId, fullName, nameKey, new Date().toISOString()); }
-        catch (error) {
-          if (duplicate()) fail(409, 'An account is already registered with these school, class and full-name details. Contact your teacher.');
-          if (db.prepare('SELECT id FROM students WHERE username=?').get(username)) fail(409, 'That username is already taken.');
+        try {
+          db.prepare('INSERT INTO students VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+            id,
+            username,
+            passwordHash(password),
+            schoolId,
+            classId,
+            fullName,
+            nameKey,
+            new Date().toISOString()
+          );
+        } catch (error) {
+          if (duplicate())
+            fail(
+              409,
+              'An account is already registered with these school, class and full-name details. Contact your teacher.'
+            );
+          if (db.prepare('SELECT id FROM students WHERE username=?').get(username))
+            fail(409, 'That username is already taken.');
           throw error;
         }
         startStudentSession(res, id);
         return json(res, 201, { username, fullName, schoolId, classId });
       }
       if (path === '/api/students/login' && req.method === 'POST') {
-        const input = await body(req); const username = text(input.username, 64, true).toLowerCase();
+        const input = await body(req);
+        const username = text(input.username, 64, true).toLowerCase();
         limit(`student-login:${ip}`, 300, 15 * 60_000);
         limit(`student-account:${hash(username)}`, 15, 15 * 60_000);
         const user = db.prepare('SELECT * FROM students WHERE username=?').get(username);
-        const valid = passwordMatches(passwordValue(input.password, false), user?.password_hash || dummyHash);
+        const valid = passwordMatches(
+          passwordValue(input.password, false),
+          user?.password_hash || dummyHash
+        );
         if (!user || !valid) fail(401, 'Username or password is incorrect.');
-        startStudentSession(res, user.id); return json(res, 200, { ok: true });
+        startStudentSession(res, user.id);
+        return json(res, 200, { ok: true });
       }
       if (path === '/api/students/logout' && req.method === 'POST') {
-        const token = /(?:^|;\s*)cep_student=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
+        const token = /(?:^|;\s*)cep_student=([a-f0-9]{64})(?:;|$)/.exec(
+          req.headers.cookie || ''
+        )?.[1];
         if (token) db.prepare('DELETE FROM student_sessions WHERE token_hash=?').run(hash(token));
-        studentCookie(res, '', 0); return json(res, 200, { ok: true });
+        studentCookie(res, '', 0);
+        return json(res, 200, { ok: true });
       }
       if (path === '/api/voter' && req.method === 'GET') {
-        const user = student(req); const round = latestRound();
-        const vote = db.prepare('SELECT v.project_id AS projectId, p.game_title AS gameTitle, v.created_at AS createdAt FROM student_votes v JOIN projects p ON p.id=v.project_id WHERE v.student_id=? AND v.round_id=?').get(user.id, round.id) || null;
-        const choices = db.prepare(`${projectSelect} WHERE p.status='Published' ORDER BY p.game_title`).all().map(p => ({ id: p.id, gameTitle: p.gameTitle, schoolId: p.schoolId, learningTopic: p.learningTopic }));
+        const user = student(req);
+        const round = latestRound();
+        const vote =
+          db
+            .prepare(
+              'SELECT v.project_id AS projectId, p.game_title AS gameTitle, v.created_at AS createdAt FROM student_votes v JOIN projects p ON p.id=v.project_id WHERE v.student_id=? AND v.round_id=?'
+            )
+            .get(user.id, round.id) || null;
+        const choices = db
+          .prepare(`${projectSelect} WHERE p.status='Published' ORDER BY p.game_title`)
+          .all()
+          .map((p) => ({
+            id: p.id,
+            gameTitle: p.gameTitle,
+            schoolId: p.schoolId,
+            learningTopic: p.learningTopic
+          }));
         return json(res, 200, { user, round, vote, choices });
       }
       if (path === '/api/vote' && req.method === 'POST') {
-        const user = student(req); const input = await body(req); const round = latestRound();
-        if (input.roundId !== round.id) fail(409, 'The voting round changed. Refresh before voting.');
+        const user = student(req);
+        const input = await body(req);
+        const round = latestRound();
+        if (input.roundId !== round.id)
+          fail(409, 'The voting round changed. Refresh before voting.');
         if (!round.isOpen) fail(409, 'Voting is closed for this round.');
-        if (db.prepare('SELECT 1 FROM student_votes WHERE student_id=? AND round_id=?').get(user.id, round.id)) fail(409, 'You have already voted in this round. Your vote is final.');
+        if (
+          db
+            .prepare('SELECT 1 FROM student_votes WHERE student_id=? AND round_id=?')
+            .get(user.id, round.id)
+        )
+          fail(409, 'You have already voted in this round. Your vote is final.');
         const p = getProject(text(input.projectId, 32, true));
         if (p.status !== 'Published') fail(400, 'This project is no longer published.');
-        try { db.prepare('INSERT INTO student_votes VALUES (?, ?, ?, ?)').run(user.id, round.id, p.id, new Date().toISOString()); }
-        catch (error) { if (db.prepare('SELECT 1 FROM student_votes WHERE student_id=? AND round_id=?').get(user.id, round.id)) fail(409, 'You have already voted in this round. Your vote is final.'); throw error; }
+        try {
+          db.prepare('INSERT INTO student_votes VALUES (?, ?, ?, ?)').run(
+            user.id,
+            round.id,
+            p.id,
+            new Date().toISOString()
+          );
+        } catch (error) {
+          if (
+            db
+              .prepare('SELECT 1 FROM student_votes WHERE student_id=? AND round_id=?')
+              .get(user.id, round.id)
+          )
+            fail(409, 'You have already voted in this round. Your vote is final.');
+          throw error;
+        }
         return json(res, 201, { ok: true, gameTitle: p.gameTitle });
       }
       if (path === '/api/classes' && req.method === 'GET') {
         const user = teacher(req);
-        return json(res, 200, { classes: db.prepare(`SELECT id, school_id AS schoolId, name FROM classes${user.schoolId ? ' WHERE school_id=?' : ''} ORDER BY name`).all(...(user.schoolId ? [user.schoolId] : [])) });
+        return json(res, 200, {
+          classes: db
+            .prepare(
+              `SELECT id, school_id AS schoolId, name FROM classes${user.schoolId ? ' WHERE school_id=?' : ''} ORDER BY name`
+            )
+            .all(...(user.schoolId ? [user.schoolId] : []))
+        });
       }
       if (path === '/api/classes' && req.method === 'POST') {
-        const user = teacher(req); const input = await body(req); const schoolId = text(input.schoolId, 80, true); canManage(user, schoolId);
-        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId)) fail(400, 'Unknown or inactive school.');
-        const name = displayName(text(input.name, 80, true)); const key = normaliseIdentity(name);
-        if (db.prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?').get(schoolId, key)) fail(409, 'That class already exists in this school.');
-        const id = randomBytes(16).toString('hex'); db.prepare('INSERT INTO classes VALUES (?, ?, ?, ?)').run(id, schoolId, name, key);
+        const user = teacher(req);
+        const input = await body(req);
+        const schoolId = text(input.schoolId, 80, true);
+        canManage(user, schoolId);
+        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId))
+          fail(400, 'Unknown or inactive school.');
+        const name = displayName(text(input.name, 80, true));
+        const key = normaliseIdentity(name);
+        if (
+          db.prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?').get(schoolId, key)
+        )
+          fail(409, 'That class already exists in this school.');
+        const id = randomBytes(16).toString('hex');
+        db.prepare('INSERT INTO classes VALUES (?, ?, ?, ?)').run(id, schoolId, name, key);
         return json(res, 201, { id, schoolId, name });
       }
       if (path === '/api/students' && req.method === 'GET') {
         const user = teacher(req);
-        return json(res, 200, { students: db.prepare(`SELECT s.id, s.username, s.full_name AS fullName, s.school_id AS schoolId, c.name AS className, s.created_at AS createdAt FROM students s JOIN classes c ON c.id=s.class_id${user.schoolId ? ' WHERE s.school_id=?' : ''} ORDER BY c.name, s.full_name`).all(...(user.schoolId ? [user.schoolId] : [])) });
+        return json(res, 200, {
+          students: db
+            .prepare(
+              `SELECT s.id, s.username, s.full_name AS fullName, s.school_id AS schoolId, c.name AS className, s.created_at AS createdAt FROM students s JOIN classes c ON c.id=s.class_id${user.schoolId ? ' WHERE s.school_id=?' : ''} ORDER BY c.name, s.full_name`
+            )
+            .all(...(user.schoolId ? [user.schoolId] : []))
+        });
       }
       const resetRoute = /^\/api\/students\/([a-f0-9]{32})\/password$/.exec(path);
       if (resetRoute && req.method === 'PUT') {
-        const user = teacher(req); const s = db.prepare('SELECT school_id AS schoolId FROM students WHERE id=?').get(resetRoute[1]);
-        if (!s) fail(404, 'Student account not found.'); canManage(user, s.schoolId);
-        const input = await body(req); db.prepare('UPDATE students SET password_hash=? WHERE id=?').run(passwordHash(passwordValue(input.password)), resetRoute[1]);
+        const user = teacher(req);
+        const s = db
+          .prepare('SELECT school_id AS schoolId FROM students WHERE id=?')
+          .get(resetRoute[1]);
+        if (!s) fail(404, 'Student account not found.');
+        canManage(user, s.schoolId);
+        const input = await body(req);
+        db.prepare('UPDATE students SET password_hash=? WHERE id=?').run(
+          passwordHash(passwordValue(input.password)),
+          resetRoute[1]
+        );
         db.prepare('DELETE FROM student_sessions WHERE student_id=?').run(resetRoute[1]);
         return json(res, 200, { ok: true });
       }
-      if (path === '/api/round' && req.method === 'GET') { teacher(req); return json(res, 200, latestRound()); }
+      if (path === '/api/round' && req.method === 'GET') {
+        teacher(req);
+        return json(res, 200, latestRound());
+      }
       if (path === '/api/round/close' && req.method === 'POST') {
-        const user = teacher(req); if (user.schoolId) fail(403, 'Only the programme administrator can close voting.');
-        db.prepare('UPDATE voting_rounds SET is_open=0 WHERE is_open=1').run(); return json(res, 200, latestRound());
+        const user = teacher(req);
+        if (user.schoolId) fail(403, 'Only the programme administrator can close voting.');
+        db.prepare('UPDATE voting_rounds SET is_open=0 WHERE is_open=1').run();
+        return json(res, 200, latestRound());
       }
       if (path === '/api/round' && req.method === 'POST') {
-        const user = teacher(req); if (user.schoolId) fail(403, 'Only the programme administrator can start a voting round.');
-        if (db.prepare('SELECT id FROM voting_rounds WHERE is_open=1').get()) fail(409, 'Close the current voting round first.');
-        const name = text((await body(req)).name, 120, true); const id = randomBytes(16).toString('hex');
-        db.prepare('INSERT INTO voting_rounds VALUES (?, ?, 1, ?)').run(id, name, new Date().toISOString()); return json(res, 201, latestRound());
+        const user = teacher(req);
+        if (user.schoolId) fail(403, 'Only the programme administrator can start a voting round.');
+        if (db.prepare('SELECT id FROM voting_rounds WHERE is_open=1').get())
+          fail(409, 'Close the current voting round first.');
+        const name = text((await body(req)).name, 120, true);
+        const id = randomBytes(16).toString('hex');
+        db.prepare('INSERT INTO voting_rounds VALUES (?, ?, 1, ?)').run(
+          id,
+          name,
+          new Date().toISOString()
+        );
+        return json(res, 201, latestRound());
       }
       if (path === '/api/import' && req.method === 'POST') {
-        const user = teacher(req); const input = await body(req, 2_000_000);
-        if (!Array.isArray(input.projects) || input.projects.length > 2000) fail(400, 'Upload a project backup with at most 2,000 records.');
-        const prepared = input.projects.map(raw => ({ originalId: text(raw.id, 120, true), ...projectInput(raw) }));
-        for (const p of prepared) { canManage(user, p.schoolId); if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId)) fail(400, 'Unknown or inactive school in backup.'); }
-        let imported = 0; let skipped = 0;
-        db.exec('CREATE TABLE IF NOT EXISTS import_ids (original_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE)');
+        const user = teacher(req);
+        const input = await body(req, 2_000_000);
+        if (!Array.isArray(input.projects) || input.projects.length > 2000)
+          fail(400, 'Upload a project backup with at most 2,000 records.');
+        const prepared = input.projects.map((raw) => ({
+          originalId: text(raw.id, 120, true),
+          ...projectInput(raw)
+        }));
+        for (const p of prepared) {
+          canManage(user, p.schoolId);
+          if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(p.schoolId))
+            fail(400, 'Unknown or inactive school in backup.');
+        }
+        let imported = 0;
+        let skipped = 0;
+        db.exec(
+          'CREATE TABLE IF NOT EXISTS import_ids (original_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE)'
+        );
         db.exec('BEGIN');
         try {
           for (const p of prepared) {
-            if (db.prepare('SELECT 1 FROM import_ids WHERE original_id=?').get(p.originalId) || db.prepare('SELECT 1 FROM projects WHERE id=?').get(p.originalId)) { skipped++; continue; }
+            if (
+              db.prepare('SELECT 1 FROM import_ids WHERE original_id=?').get(p.originalId) ||
+              db.prepare('SELECT 1 FROM projects WHERE id=?').get(p.originalId)
+            ) {
+              skipped++;
+              continue;
+            }
             const id = randomBytes(16).toString('hex');
-            db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)').run(id, p.schoolId, p.teamName, p.gameTitle, p.learningTopic, p.description, p.makecodeUrl, p.status, p.progress, p.currentSession, p.trainerFeedback, new Date().toISOString());
-            db.prepare('INSERT INTO import_ids VALUES (?, ?)').run(p.originalId, id); imported++;
+            db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)').run(
+              id,
+              p.schoolId,
+              p.teamName,
+              p.gameTitle,
+              p.learningTopic,
+              p.description,
+              p.makecodeUrl,
+              p.status,
+              p.progress,
+              p.currentSession,
+              p.trainerFeedback,
+              new Date().toISOString()
+            );
+            db.prepare('INSERT INTO import_ids VALUES (?, ?)').run(p.originalId, id);
+            imported++;
           }
           db.exec('COMMIT');
-        } catch (error) { db.exec('ROLLBACK'); throw error; }
+        } catch (error) {
+          db.exec('ROLLBACK');
+          throw error;
+        }
         return json(res, 200, { imported, skipped });
       }
       if (path === '/api/backup' && req.method === 'GET') {
         const user = teacher(req);
-        return json(res, 200, { app: 'CEP Online Showcase', version: 1, exportedAt: new Date().toISOString(), schools: db.prepare(`SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1'} ORDER BY name`).all(...(user.schoolId ? [user.schoolId] : [])), projects: db.prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''}`).all(...(user.schoolId ? [user.schoolId] : [])) });
+        return json(res, 200, {
+          app: 'CEP Online Showcase',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          schools: db
+            .prepare(
+              `SELECT id, name, short_name AS shortName FROM schools${user.schoolId ? ' WHERE id=?' : ' WHERE is_active=1'} ORDER BY name`
+            )
+            .all(...(user.schoolId ? [user.schoolId] : [])),
+          projects: db
+            .prepare(`${projectSelect}${user.schoolId ? ' WHERE p.school_id=?' : ''}`)
+            .all(...(user.schoolId ? [user.schoolId] : []))
+        });
       }
       fail(404, 'Endpoint not found.');
     } catch (error) {
       if (!(error instanceof HttpError)) console.error('Request failed:', error);
-      if (!res.headersSent) json(res, error.status || 500, { error: error instanceof HttpError ? error.message : 'The server could not complete the request.' });
+      if (!res.headersSent)
+        json(res, error.status || 500, {
+          error:
+            error instanceof HttpError
+              ? error.message
+              : 'The server could not complete the request.'
+        });
       else res.end();
     }
   });
@@ -290,7 +668,14 @@ export function createApp({ database = resolve(process.env.DATA_DIR || 'data', '
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { server, db } = createApp();
-  const port = Number(process.env.PORT || 3000); const host = process.env.HOST || '127.0.0.1';
+  const port = Number(process.env.PORT || 3000);
+  const host = process.env.HOST || '127.0.0.1';
   server.listen(port, host, () => console.log(`CEP online platform listening on ${host}:${port}`));
-  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => { db.close(); process.exit(0); }));
+  for (const signal of ['SIGINT', 'SIGTERM'])
+    process.on(signal, () =>
+      server.close(() => {
+        db.close();
+        process.exit(0);
+      })
+    );
 }

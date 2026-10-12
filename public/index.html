@@ -1,33 +1,445 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Explore student MakeCode projects from nine schools and vote for your favourite.">
-  <title>Student Project Showcase</title><link rel="icon" href="/artwork.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/school-search.css"><script src="/app.js" type="module"></script>
-</head>
-<body>
-<header class="site-header"><a class="brand" href="#showcase"><span class="brand-icon">✦</span><span>Student Project<br><strong>Showcase</strong></span></a><nav aria-label="Main navigation"><a href="#showcase">Showcase</a><a href="#vote">Student vote</a><a href="#teacher" id="teacher-link">Teacher sign in</a></nav></header>
-<main>
-<section id="showcase" class="view">
- <div class="hero"><div><p class="eyebrow">NINE SCHOOLS. LIMITLESS IDEAS.</p><h1>Small teams.<br><span>Big discoveries.</span></h1><p class="hero-copy">Games built by students, learning brought to life. Explore published projects and celebrate the next generation of creators.</p><a class="button primary" href="#projects">Explore the projects ↗</a><a class="button secondary" href="#vote">Cast your vote</a></div><div class="hero-art"><img src="/artwork.svg" alt="Illustration of a colourful game controller"><span class="art-note">Create. Play. Discover.</span></div></div>
- <div class="stats" id="public-stats" aria-live="polite"></div>
- <section id="projects" class="section"><div class="section-heading"><div><p class="eyebrow">MADE BY STUDENTS</p><h2>Featured projects</h2></div><button id="refresh-showcase" class="button secondary">Refresh results</button></div><div class="filters"><label>Search projects<input id="public-search" type="search" placeholder="Game, team or learning topic"></label><label>School<select id="public-school"><option value="">All schools</option></select></label><label>Sort by<select id="public-sort"><option value="votes">Most votes</option><option value="title">Project title</option><option value="newest">Recently updated</option></select></label></div><p id="public-message" role="status"></p><div class="project-grid" id="public-projects"></div></section>
-</section>
-<section id="vote" class="view" hidden><div class="page-heading"><p class="eyebrow">PEOPLE’S CHOICE</p><h1>Your favourite deserves a vote.</h1><p>Create your student account or sign in. You can cast one final vote in each voting round, from any device.</p></div><div class="narrow">
-<div id="student-auth"><div class="tabs"><button class="button primary" id="show-student-login">Sign in</button><button class="button secondary" id="show-register">Create an account</button></div>
-<form id="student-login" class="panel"><h2>Student sign in</h2><label>Username<input name="username" required maxlength="64" autocomplete="username"></label><label>Password<input name="password" type="password" required maxlength="256" autocomplete="current-password"></label><button class="button primary" type="submit">Sign in to vote</button><p class="form-message" id="student-login-message" role="status"></p><p class="hint">Forgot your username or password? Contact your teacher. Do not create another account.</p></form>
-<form id="register-form" class="panel" hidden><h2>Create your student account</h2><p>Use your full name exactly as recorded by your school. Your name is visible to authorised teachers and is never shown on the public showcase.</p><div class="form-grid"><label>School<select name="schoolId" id="register-school" required><option value="">Choose your school</option></select></label><label>Class<select name="classId" id="register-class" required><option value="">Choose your school first</option></select></label></div><p id="registration-help" class="hint"></p><label>Full name<input name="fullName" required maxlength="120" autocomplete="name" placeholder="Your full name as recorded by your school"></label><label>Choose a username<input name="username" required minlength="3" maxlength="64" pattern="[a-zA-Z0-9._-]{3,64}" autocomplete="username"><small>3–64 letters, numbers, dots, underscores or hyphens.</small></label><div class="form-grid"><label>Password<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label><label>Confirm password<input name="confirmPassword" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label></div><p class="hint">Use 8–128 characters with at least one letter and one number. Symbols are optional. Your school, class and name cannot be changed through registration after the account is created.</p><label class="checkbox"><input type="checkbox" name="fullNameConfirmed" required> I have entered my full name as recorded by my school and am registering only one account.</label><button class="button primary" type="submit">Create account & continue</button><p class="form-message" id="register-message" role="status"></p></form></div>
-<div id="student-workspace" hidden><div class="workspace-bar"><p id="student-account"></p><button class="button secondary" id="student-logout">Sign out / next student</button></div><form id="ballot-form" class="panel"><h2 id="round-title">Choose a project</h2><p id="ballot-status" role="status"></p><div id="ballot-choices"></div><label class="checkbox" id="final-confirmation"><input type="checkbox" name="finalConfirmation" required> I understand that my vote is final and cannot be changed.</label><button class="button primary" type="submit" id="save-vote">Confirm final vote</button><p class="form-message" id="vote-message" role="status"></p></form></div>
-</div></section>
-<section id="teacher" class="view" hidden><div class="page-heading"><p class="eyebrow">PROGRAMME TEAM</p><h1>Teacher workspace</h1><p>Manage your school’s projects, classes and student accounts, and publish student work.</p></div><form id="login-form" class="panel narrow"><h2>Sign in</h2><label>Username<input name="username" required maxlength="64" autocomplete="username"></label><label>Password<input name="password" type="password" required maxlength="256" autocomplete="current-password"></label><button class="button primary" type="submit">Sign in</button><p id="login-message" class="form-message" role="status"></p><p class="hint">Accounts are issued by your programme administrator.</p></form>
-<div id="workspace" hidden><div class="workspace-bar"><p id="account-label"></p><div><button class="button secondary" id="export-data">Export project records</button><button class="button secondary" id="logout">Sign out</button></div></div><p id="workspace-message" class="form-message" role="status"></p><div class="stats" id="teacher-stats"></div><div class="tabs" aria-label="Teacher sections"><button class="button primary" data-tab="manage">Projects</button><button class="button secondary" data-tab="students">Students & voting</button><button class="button secondary" data-tab="schools">Schools & import</button></div>
-<section id="manage-panel"><div class="section-heading"><h2>Project records</h2><button class="button primary" id="new-project">+ Add project</button></div><div class="filters"><label>Search records<input id="manage-search" type="search" placeholder="Project or team"></label><label>Status<select id="manage-status"><option value="">All statuses</option></select></label></div><div id="manage-projects" class="record-list"></div></section>
-<section id="students-panel" hidden><div class="section-heading"><h2>Student accounts</h2><button class="button secondary" id="refresh-students">Refresh students</button></div><p>Names and classes are private to teachers with access to this school. Registration checks matching names, but does not verify student identity.</p><div id="students-list" class="record-list"></div><div class="panel" id="round-controls" hidden><h3>Voting round</h3><p id="teacher-round-status"></p><button class="button danger" id="close-round">Close current voting round</button><form id="new-round" hidden><label>New round name<input name="name" required maxlength="120" placeholder="Student Choice Award — Term 2"></label><button class="button primary" type="submit">Start new voting round</button></form><p class="form-message" id="round-message" role="status"></p></div></section>
-<section id="schools-panel" hidden><h2>School settings</h2><div id="school-forms" class="record-list"></div><form id="class-form" class="panel"><h3>Add a class</h3><p>Students can register only for the classes listed under their selected school.</p><div class="form-grid"><label>School<select name="schoolId" id="class-school" required></select></label><label>Class name<input name="name" required maxlength="80" placeholder="Example: Primary 5A"></label></div><button class="button primary" type="submit">Add class</button><p id="class-message" class="form-message" role="status"></p><div id="classes-list"></div></form><form id="import-form" class="panel"><h3>Import existing offline projects</h3><p>Export all data from the offline portal and upload its JSON backup here. Only projects for schools you manage are imported. Existing IDs are skipped; offline votes and thumbnail images are not imported. Students register their own accounts to vote online.</p><label>JSON backup<input name="backup" type="file" accept=".json,application/json" required></label><button class="button primary" type="submit">Import projects</button><p id="import-message" class="form-message" role="status"></p></form></section>
-</div></section>
-</main>
-<footer><strong>Student Project Showcase</strong><span>Shared online records · Student names remain private</span></footer>
-<dialog id="editor"><form id="project-form"><div class="section-heading"><h2 id="editor-title">Add a project</h2><button type="button" class="button secondary" id="close-editor" aria-label="Close project editor">Close</button></div><div class="form-grid"><label>School<div class="school-combobox"><input id="project-school-search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="project-school-results" autocomplete="off" placeholder="Type any part of a school name" required><input name="schoolId" type="hidden"><div id="project-school-results" class="combobox-results" role="listbox" hidden></div></div><small>Search is not case-sensitive and matches any part of the name. For example, “girls” finds every school containing “Girls”.</small></label><label>Team name or code<input name="teamName" maxlength="80" required></label><label>Game title<input name="gameTitle" maxlength="120" required></label><label>Learning topic<input name="learningTopic" maxlength="100" required></label></div><label>Description<textarea name="description" rows="3" maxlength="600"></textarea></label><label>MakeCode Arcade share link<input name="makecodeUrl" type="url" placeholder="https://arcade.makecode.com/..."></label><div class="form-grid three"><label>Status<select name="status" required></select></label><label>Session<input name="currentSession" type="number" min="1" max="8" value="1" required></label><label>Progress (%)<input name="progress" type="number" min="0" max="100" value="0" required></label></div><label>Trainer feedback (teachers only)<textarea name="trainerFeedback" rows="2" maxlength="500"></textarea></label><label class="checkbox"><input type="checkbox" name="privacy" required> This record contains team information only, with no pupils’ personal details.</label><p id="editor-message" class="form-message" role="status"></p><button class="button primary" type="submit">Save project</button></form></dialog>
-<dialog id="details"><div class="section-heading"><h2 id="detail-title"></h2><button class="button secondary" id="close-details">Close</button></div><div id="detail-content"></div></dialog>
-<dialog id="password-dialog"><form id="reset-password-form"><h2>Reset student password</h2><p id="reset-student-label"></p><p>Confirm the student’s identity through your school before resetting their password. Existing sign-ins will be revoked; their vote stays final. The new password needs 8–128 characters with at least one letter and one number.</p><label>New password<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label><label>Confirm new password<input name="confirmPassword" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></label><p id="reset-message" class="form-message" role="status"></p><button class="button primary" type="submit">Reset password</button><button class="button secondary" type="button" id="close-password">Cancel</button></form></dialog>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore student MakeCode projects from nine schools and vote for your favourite."
+    />
+    <title>Student Project Showcase</title>
+    <link rel="icon" href="/artwork.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/school-search.css" />
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#showcase"
+        ><span class="brand-icon">✦</span
+        ><span>Student Project<br /><strong>Showcase</strong></span></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="#showcase">Showcase</a><a href="#vote">Student vote</a
+        ><a href="#teacher" id="teacher-link">Teacher sign in</a>
+      </nav>
+    </header>
+    <main>
+      <section id="showcase" class="view">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">NINE SCHOOLS. LIMITLESS IDEAS.</p>
+            <h1>Small teams.<br /><span>Big discoveries.</span></h1>
+            <p class="hero-copy">
+              Games built by students, learning brought to life. Explore published projects and
+              celebrate the next generation of creators.
+            </p>
+            <a class="button primary" href="#projects">Explore the projects ↗</a
+            ><a class="button secondary" href="#vote">Cast your vote</a>
+          </div>
+          <div class="hero-art">
+            <img src="/artwork.svg" alt="Illustration of a colourful game controller" /><span
+              class="art-note"
+              >Create. Play. Discover.</span
+            >
+          </div>
+        </div>
+        <div class="stats" id="public-stats" aria-live="polite"></div>
+        <section id="projects" class="section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">MADE BY STUDENTS</p>
+              <h2>Featured projects</h2>
+            </div>
+            <button id="refresh-showcase" class="button secondary">Refresh results</button>
+          </div>
+          <div class="filters">
+            <label
+              >Search projects<input
+                id="public-search"
+                type="search"
+                placeholder="Game, team or learning topic" /></label
+            ><label
+              >School<select id="public-school">
+                <option value="">All schools</option>
+              </select></label
+            ><label
+              >Sort by<select id="public-sort">
+                <option value="votes">Most votes</option>
+                <option value="title">Project title</option>
+                <option value="newest">Recently updated</option>
+              </select></label
+            >
+          </div>
+          <p id="public-message" role="status"></p>
+          <div class="project-grid" id="public-projects"></div>
+        </section>
+      </section>
+      <section id="vote" class="view" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">PEOPLE’S CHOICE</p>
+          <h1>Your favourite deserves a vote.</h1>
+          <p>
+            Create your student account or sign in. You can cast one final vote in each voting
+            round, from any device.
+          </p>
+        </div>
+        <div class="narrow">
+          <div id="student-auth">
+            <div class="tabs">
+              <button class="button primary" id="show-student-login">Sign in</button
+              ><button class="button secondary" id="show-register">Create an account</button>
+            </div>
+            <form id="student-login" class="panel">
+              <h2>Student sign in</h2>
+              <label
+                >Username<input
+                  name="username"
+                  required
+                  maxlength="64"
+                  autocomplete="username" /></label
+              ><label
+                >Password<input
+                  name="password"
+                  type="password"
+                  required
+                  maxlength="256"
+                  autocomplete="current-password" /></label
+              ><button class="button primary" type="submit">Sign in to vote</button>
+              <p class="form-message" id="student-login-message" role="status"></p>
+              <p class="hint">
+                Forgot your username or password? Contact your teacher. Do not create another
+                account.
+              </p>
+            </form>
+            <form id="register-form" class="panel" hidden>
+              <h2>Create your student account</h2>
+              <p>
+                Use your full name exactly as recorded by your school. Your name is visible to
+                authorised teachers and is never shown on the public showcase.
+              </p>
+              <div class="form-grid">
+                <label
+                  >School<select name="schoolId" id="register-school" required>
+                    <option value="">Choose your school</option>
+                  </select></label
+                ><label
+                  >Class<select name="classId" id="register-class" required>
+                    <option value="">Choose your school first</option>
+                  </select></label
+                >
+              </div>
+              <p id="registration-help" class="hint"></p>
+              <label
+                >Full name<input
+                  name="fullName"
+                  required
+                  maxlength="120"
+                  autocomplete="name"
+                  placeholder="Your full name as recorded by your school" /></label
+              ><label
+                >Choose a username<input
+                  name="username"
+                  required
+                  minlength="3"
+                  maxlength="64"
+                  pattern="[a-zA-Z0-9._-]{3,64}"
+                  autocomplete="username"
+                /><small>3–64 letters, numbers, dots, underscores or hyphens.</small></label
+              >
+              <div class="form-grid">
+                <label
+                  >Password<input
+                    name="password"
+                    type="password"
+                    required
+                    minlength="8"
+                    maxlength="128"
+                    autocomplete="new-password" /></label
+                ><label
+                  >Confirm password<input
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    minlength="8"
+                    maxlength="128"
+                    autocomplete="new-password"
+                /></label>
+              </div>
+              <p class="hint">
+                Use 8–128 characters with at least one letter and one number. Symbols are optional.
+                Your school, class and name cannot be changed through registration after the account
+                is created.
+              </p>
+              <label class="checkbox"
+                ><input type="checkbox" name="fullNameConfirmed" required /> I have entered my full
+                name as recorded by my school and am registering only one account.</label
+              ><button class="button primary" type="submit">Create account & continue</button>
+              <p class="form-message" id="register-message" role="status"></p>
+            </form>
+          </div>
+          <div id="student-workspace" hidden>
+            <div class="workspace-bar">
+              <p id="student-account"></p>
+              <button class="button secondary" id="student-logout">Sign out / next student</button>
+            </div>
+            <form id="ballot-form" class="panel">
+              <h2 id="round-title">Choose a project</h2>
+              <p id="ballot-status" role="status"></p>
+              <div id="ballot-choices"></div>
+              <label class="checkbox" id="final-confirmation"
+                ><input type="checkbox" name="finalConfirmation" required /> I understand that my
+                vote is final and cannot be changed.</label
+              ><button class="button primary" type="submit" id="save-vote">
+                Confirm final vote
+              </button>
+              <p class="form-message" id="vote-message" role="status"></p>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section id="teacher" class="view" hidden>
+        <div class="page-heading">
+          <p class="eyebrow">PROGRAMME TEAM</p>
+          <h1>Teacher workspace</h1>
+          <p>
+            Manage your school’s projects, classes and student accounts, and publish student work.
+          </p>
+        </div>
+        <form id="login-form" class="panel narrow">
+          <h2>Sign in</h2>
+          <label
+            >Username<input
+              name="username"
+              required
+              maxlength="64"
+              autocomplete="username" /></label
+          ><label
+            >Password<input
+              name="password"
+              type="password"
+              required
+              maxlength="256"
+              autocomplete="current-password" /></label
+          ><button class="button primary" type="submit">Sign in</button>
+          <p id="login-message" class="form-message" role="status"></p>
+          <p class="hint">Accounts are issued by your programme administrator.</p>
+        </form>
+        <div id="workspace" hidden>
+          <div class="workspace-bar">
+            <p id="account-label"></p>
+            <div>
+              <button class="button secondary" id="export-data">Export project records</button
+              ><button class="button secondary" id="logout">Sign out</button>
+            </div>
+          </div>
+          <p id="workspace-message" class="form-message" role="status"></p>
+          <div class="stats" id="teacher-stats"></div>
+          <div class="tabs" aria-label="Teacher sections">
+            <button class="button primary" data-tab="manage">Projects</button
+            ><button class="button secondary" data-tab="students">Students & voting</button
+            ><button class="button secondary" data-tab="schools">Schools & import</button>
+          </div>
+          <section id="manage-panel">
+            <div class="section-heading">
+              <h2>Project records</h2>
+              <button class="button primary" id="new-project">+ Add project</button>
+            </div>
+            <div class="filters">
+              <label
+                >Search records<input
+                  id="manage-search"
+                  type="search"
+                  placeholder="Project or team" /></label
+              ><label
+                >Status<select id="manage-status">
+                  <option value="">All statuses</option>
+                </select></label
+              >
+            </div>
+            <div id="manage-projects" class="record-list"></div>
+          </section>
+          <section id="students-panel" hidden>
+            <div class="section-heading">
+              <h2>Student accounts</h2>
+              <button class="button secondary" id="refresh-students">Refresh students</button>
+            </div>
+            <p>
+              Names and classes are private to teachers with access to this school. Registration
+              checks matching names, but does not verify student identity.
+            </p>
+            <div id="students-list" class="record-list"></div>
+            <div class="panel" id="round-controls" hidden>
+              <h3>Voting round</h3>
+              <p id="teacher-round-status"></p>
+              <button class="button danger" id="close-round">Close current voting round</button>
+              <form id="new-round" hidden>
+                <label
+                  >New round name<input
+                    name="name"
+                    required
+                    maxlength="120"
+                    placeholder="Student Choice Award — Term 2" /></label
+                ><button class="button primary" type="submit">Start new voting round</button>
+              </form>
+              <p class="form-message" id="round-message" role="status"></p>
+            </div>
+          </section>
+          <section id="schools-panel" hidden>
+            <h2>School settings</h2>
+            <div id="school-forms" class="record-list"></div>
+            <form id="class-form" class="panel">
+              <h3>Add a class</h3>
+              <p>Students can register only for the classes listed under their selected school.</p>
+              <div class="form-grid">
+                <label>School<select name="schoolId" id="class-school" required></select></label
+                ><label
+                  >Class name<input
+                    name="name"
+                    required
+                    maxlength="80"
+                    placeholder="Example: Primary 5A"
+                /></label>
+              </div>
+              <button class="button primary" type="submit">Add class</button>
+              <p id="class-message" class="form-message" role="status"></p>
+              <div id="classes-list"></div>
+            </form>
+            <form id="import-form" class="panel">
+              <h3>Import existing offline projects</h3>
+              <p>
+                Export all data from the offline portal and upload its JSON backup here. Only
+                projects for schools you manage are imported. Existing IDs are skipped; offline
+                votes and thumbnail images are not imported. Students register their own accounts to
+                vote online.
+              </p>
+              <label
+                >JSON backup<input
+                  name="backup"
+                  type="file"
+                  accept=".json,application/json"
+                  required /></label
+              ><button class="button primary" type="submit">Import projects</button>
+              <p id="import-message" class="form-message" role="status"></p>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <strong>Student Project Showcase</strong
+      ><span>Shared online records · Student names remain private</span>
+    </footer>
+    <dialog id="editor">
+      <form id="project-form">
+        <div class="section-heading">
+          <h2 id="editor-title">Add a project</h2>
+          <button
+            type="button"
+            class="button secondary"
+            id="close-editor"
+            aria-label="Close project editor"
+          >
+            Close
+          </button>
+        </div>
+        <div class="form-grid">
+          <label
+            >School
+            <div class="school-combobox">
+              <input
+                id="project-school-search"
+                type="search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="project-school-results"
+                autocomplete="off"
+                placeholder="Type any part of a school name"
+                required
+              /><input name="schoolId" type="hidden" />
+              <div id="project-school-results" class="combobox-results" role="listbox" hidden></div>
+            </div>
+            <small
+              >Search is not case-sensitive and matches any part of the name. For example, “girls”
+              finds every school containing “Girls”.</small
+            ></label
+          ><label>Team name or code<input name="teamName" maxlength="80" required /></label
+          ><label>Game title<input name="gameTitle" maxlength="120" required /></label
+          ><label>Learning topic<input name="learningTopic" maxlength="100" required /></label>
+        </div>
+        <label>Description<textarea name="description" rows="3" maxlength="600"></textarea></label
+        ><label
+          >MakeCode Arcade share link<input
+            name="makecodeUrl"
+            type="url"
+            placeholder="https://arcade.makecode.com/..."
+        /></label>
+        <div class="form-grid three">
+          <label>Status<select name="status" required></select></label
+          ><label
+            >Session<input
+              name="currentSession"
+              type="number"
+              min="1"
+              max="8"
+              value="1"
+              required /></label
+          ><label
+            >Progress (%)<input name="progress" type="number" min="0" max="100" value="0" required
+          /></label>
+        </div>
+        <label
+          >Trainer feedback (teachers only)<textarea
+            name="trainerFeedback"
+            rows="2"
+            maxlength="500"
+          ></textarea></label
+        ><label class="checkbox"
+          ><input type="checkbox" name="privacy" required /> This record contains team information
+          only, with no pupils’ personal details.</label
+        >
+        <p id="editor-message" class="form-message" role="status"></p>
+        <button class="button primary" type="submit">Save project</button>
+      </form>
+    </dialog>
+    <dialog id="details">
+      <div class="section-heading">
+        <h2 id="detail-title"></h2>
+        <button class="button secondary" id="close-details">Close</button>
+      </div>
+      <div id="detail-content"></div>
+    </dialog>
+    <dialog id="password-dialog">
+      <form id="reset-password-form">
+        <h2>Reset student password</h2>
+        <p id="reset-student-label"></p>
+        <p>
+          Confirm the student’s identity through your school before resetting their password.
+          Existing sign-ins will be revoked; their vote stays final. The new password needs 8–128
+          characters with at least one letter and one number.
+        </p>
+        <label
+          >New password<input
+            name="password"
+            type="password"
+            required
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password" /></label
+        ><label
+          >Confirm new password<input
+            name="confirmPassword"
+            type="password"
+            required
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password"
+        /></label>
+        <p id="reset-message" class="form-message" role="status"></p>
+        <button class="button primary" type="submit">Reset password</button
+        ><button class="button secondary" type="button" id="close-password">Cancel</button>
+      </form>
+    </dialog>
+  </body>
+</html>
