@@ -136,12 +136,17 @@
                 </label>
                 <label>
                   Class
-                  <select name="classId" id="register-class" required>
-                    <option value="">Choose your school first</option>
-                  </select>
+                  <input
+                    name="className"
+                    id="register-class"
+                    required
+                    maxlength="80"
+                    placeholder="Type your class"
+                    autocomplete="organization-title"
+                  />
                 </label>
               </div>
-              <p id="registration-help" class="hint"></p>
+              <p class="hint">Type your class as you normally write it at school.</p>
               <label>
                 Full name
                 <input
@@ -227,9 +232,7 @@
         <div class="page-heading">
           <p class="eyebrow">PROGRAMME TEAM</p>
           <h1>Teacher workspace</h1>
-          <p>
-            Manage your school’s projects, classes and student accounts, and publish student work.
-          </p>
+          <p>Manage your school’s projects and student accounts, and publish student work.</p>
         </div>
         <form id="login-form" class="panel narrow">
           <h2>Sign in</h2>
@@ -263,7 +266,6 @@
           <div class="tabs" aria-label="Teacher sections">
             <button class="button primary" data-tab="manage">Projects</button>
             <button class="button secondary" data-tab="students">Students & voting</button>
-            <button class="button secondary" data-tab="schools">Schools & import</button>
           </div>
           <section id="manage-panel">
             <div class="section-heading">
@@ -312,42 +314,6 @@
               </form>
               <p class="form-message" id="round-message" role="status"></p>
             </div>
-          </section>
-          <section id="schools-panel" hidden>
-            <h2>School settings</h2>
-            <div id="school-forms" class="record-list"></div>
-            <form id="class-form" class="panel">
-              <h3>Add a class</h3>
-              <p>Students can register only for the classes listed under their selected school.</p>
-              <div class="form-grid">
-                <label>
-                  School
-                  <select name="schoolId" id="class-school" required></select>
-                </label>
-                <label>
-                  Class name
-                  <input name="name" required maxlength="80" placeholder="Example: Primary 5A" />
-                </label>
-              </div>
-              <button class="button primary" type="submit">Add class</button>
-              <p id="class-message" class="form-message" role="status"></p>
-              <div id="classes-list"></div>
-            </form>
-            <form id="import-form" class="panel">
-              <h3>Import existing offline projects</h3>
-              <p>
-                Export all data from the offline portal and upload its JSON backup here. Only
-                projects for schools you manage are imported. Existing IDs are skipped; offline
-                votes and thumbnail images are not imported. Students register their own accounts to
-                vote online.
-              </p>
-              <label>
-                JSON backup
-                <input name="backup" type="file" accept=".json,application/json" required />
-              </label>
-              <button class="button primary" type="submit">Import projects</button>
-              <p id="import-message" class="form-message" role="status"></p>
-            </form>
           </section>
         </div>
       </section>

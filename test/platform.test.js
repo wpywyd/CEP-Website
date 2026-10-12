@@ -87,7 +87,7 @@ async function fixture(t) {
     async register(overrides = {}) {
       return this.request('/api/students/register', 'POST', {
         schoolId: SCHOOL_1,
-        classId: this.class1.id,
+        className: 'Secondary 1A',
         fullName: 'Alex Tan',
         username: 'alex.tan',
         password: PASSWORD,
@@ -103,7 +103,6 @@ async function fixture(t) {
     }
   };
   f.admin = await f.login();
-  f.class1 = await f.class();
   return f;
 }
 
@@ -161,29 +160,29 @@ test('normalised school + class + name is unique, including concurrent registrat
   const unicode = await f.register({ fullName: 'Ａｌｅｘ Ｔａｎ', username: 'unicode.user' });
   assert.equal(unicode.status, 409);
   assert.equal(f.db.prepare('SELECT count(*) AS count FROM students').get().count, 1);
-  const class2 = await f.class(SCHOOL_1, 'Secondary 1B');
-  assert.equal((await f.register({ classId: class2.id, username: 'other.class' })).status, 201);
-  const otherSchool = await f.class(SCHOOL_2, 'Secondary 1A');
   assert.equal(
-    (await f.register({ schoolId: SCHOOL_2, classId: otherSchool.id, username: 'other.school' }))
+    (await f.register({ className: 'Secondary 1B', username: 'other.class' })).status,
+    201
+  );
+  assert.equal(
+    (await f.register({ schoolId: SCHOOL_2, className: 'Secondary 1A', username: 'other.school' }))
       .status,
     201
   );
 });
 
-test('registration validates school/class, full-name confirmation, username and password', async (t) => {
+test('registration accepts typed classes and validates school, identity, username and password', async (t) => {
   const f = await fixture(t);
-  const other = await f.class(SCHOOL_2);
   for (const overrides of [
-    { classId: other.id },
+    { schoolId: 'invented' },
+    { className: '' },
     { fullName: 'Student123' },
     { fullName: '<script>' },
     { fullNameConfirmed: false },
     { username: 'a' },
     { password: 'short' },
     { password: 'abcdefgh' },
-    { password: '12345678' },
-    { classId: 'invented' }
+    { password: '12345678' }
   ]) {
     assert.equal((await f.register(overrides)).status, 400);
   }
@@ -194,7 +193,11 @@ test('registration validates school/class, full-name confirmation, username and 
       .status,
     201
   );
-  assert.equal((await f.request('/api/registration')).data.classes.length, 2);
+  assert.equal(
+    (await f.register({ className: '<script>', username: 'student.freeclass' })).status,
+    201
+  );
+  assert.equal('classes' in (await f.request('/api/registration')).data, false);
 });
 
 test('a vote is final across devices and concurrent requests; new rounds permit one new vote', async (t) => {

@@ -369,11 +369,6 @@ export function createApp({
             .prepare(
               'SELECT id, name, short_name AS shortName FROM schools WHERE is_active=1 ORDER BY name'
             )
-            .all(),
-          classes: db
-            .prepare(
-              'SELECT c.id, c.school_id AS schoolId, c.name FROM classes c JOIN schools s ON s.id=c.school_id WHERE s.is_active=1 ORDER BY c.name'
-            )
             .all()
         });
       }
@@ -381,9 +376,16 @@ export function createApp({
         limit(`register:${ip}`, 120, 60 * 60_000);
         const input = await body(req);
         const schoolId = text(input.schoolId, 80, true);
-        const classId = text(input.classId, 80, true);
-        if (!db.prepare('SELECT id FROM classes WHERE id=? AND school_id=?').get(classId, schoolId))
-          fail(400, 'Select a class belonging to your school.');
+        if (!db.prepare('SELECT id FROM schools WHERE id=? AND is_active=1').get(schoolId))
+          fail(400, 'Select a valid school.');
+        const className = displayName(text(input.className, 80, true));
+        const classKey = normaliseIdentity(className);
+        db.prepare(
+          'INSERT OR IGNORE INTO classes (id, school_id, name, name_key) VALUES (?, ?, ?, ?)'
+        ).run(randomBytes(16).toString('hex'), schoolId, className, classKey);
+        const classId = db
+          .prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?')
+          .get(schoolId, classKey).id;
         const fullName = displayName(text(input.fullName, 120, true));
         if (!/^[\p{L}\p{M} .’'\-]+$/u.test(fullName) || !/\p{L}/u.test(fullName))
           fail(
@@ -431,7 +433,7 @@ export function createApp({
           throw error;
         }
         startStudentSession(res, id);
-        return json(res, 201, { username, fullName, schoolId, classId });
+        return json(res, 201, { username, fullName, schoolId, className });
       }
       if (path === '/api/students/login' && req.method === 'POST') {
         const input = await body(req);

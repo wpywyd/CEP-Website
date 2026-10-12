@@ -15,11 +15,11 @@ npm start
 
 Teacher creation prompts for a hidden password containing 8–128 characters, at least one letter and at least one number; symbols are optional. Running the command again changes that account's password and access scope and revokes existing sessions. `admin` means programme-wide access; an exact school name or its `sg-` ID limits a teacher to that school. The command supports a securely supplied `TEACHER_PASSWORD` for noninteractive provisioning; do not put passwords in shell history, source files, or command arguments.
 
-The server defaults to port 3000 and binds to loopback. The public site is at `http://localhost:3000`; it does not display a teacher link. Teachers go directly to `http://localhost:3000/teacher`, which opens the teacher sign-in screen. After signing in, add each school's real classes under **Schools & import**, and create projects. Set a project to **Published** to show it publicly and make it available for voting. A fresh database loads the Singapore secondary-school directory from `school-directory.js` and has an open initial voting round, no classes, no accounts, and no sample projects. Students cannot register until their school has classes configured. The Add project form filters schools by any part of the name without regard to capitalisation.
+The server defaults to port 3000 and binds to loopback. The public site is at `http://localhost:3000`; it does not display a teacher link. Teachers go directly to `http://localhost:3000/teacher`, which opens the teacher sign-in screen. After signing in, create projects and set a project to **Published** to show it publicly and make it available for voting. A fresh database loads the Singapore secondary-school directory from `school-directory.js` and has an open initial voting round, no accounts, and no sample projects. The Add project form filters schools by any part of the name without regard to capitalisation.
 
 ## Student registration and voting
 
-- Students choose a configured school and class, enter their full name as recorded by the school, choose a username/password, and confirm their name.
+- Students choose a school, type any non-empty class name, enter their full name as recorded by the school, choose a username/password, and confirm their name. Classes do not require prior teacher configuration.
 - The server normalises Unicode compatibility characters, capitalisation, and repeated whitespace for a unique **school + class + full name** database key. Display names retain spelling and capitalisation. Legitimate single-word names and non-Latin names are supported.
 - A username is unique across student accounts. Passwords are salted and hashed with scrypt. Only hashed session tokens are stored; browser cookies are HttpOnly and SameSite=Strict.
 - The database enforces one vote per student account per voting round. Votes cannot be replaced, even from another device or in concurrent requests. Student passwords can be reset by a teacher with access to that school, without removing the vote.
@@ -28,10 +28,6 @@ The server defaults to port 3000 and binds to loopback. The public site is at `h
 - Open registration checks matching details; it cannot verify that a claimed name is real or stop a person registering under different details. Two students with the same full name in the same class are blocked by the duplicate rule and must contact the programme administrator for review. There is no automatic bypass.
 - There is no verified student-to-team mapping in this registration model, so students can vote for any published project. Own-team exclusion would require a trusted team assignment.
 
-## Import existing offline work
-
-Export JSON from the original offline portal, then upload it under **Schools & import**. Imports are transactional, restricted to the teacher's school scope, and skip previously imported IDs. A school teacher should use a school-specific backup; an all-school administrator can import the full master backup. Offline votes, voter codes and thumbnails are not imported. Students must register online; each project uses the included original SVG artwork until a separate image-upload feature is added.
-
 ## Tests
 
 ```sh
@@ -39,7 +35,7 @@ npm test
 npm run test:browser
 ```
 
-The API tests use isolated temporary databases and cover identity duplicates, concurrent registrations and votes, permissions, privacy, server restart persistence, password recovery, project conflicts, round transitions, import behaviour and production cookies. The browser smoke test uses a fresh temporary database and Chromium to exercise the teacher and student workflows. Set `CHROMIUM_PATH` if Chromium is elsewhere. Chromium is available in the prepared cloud environment; on other machines install a trusted Chromium build separately. Browser test screenshots are written to the OS temporary directory. Test accounts and votes are never written to your live database.
+The API tests use isolated temporary databases and cover identity duplicates, concurrent registrations and votes, permissions, privacy, server restart persistence, password recovery, project conflicts, round transitions, import behaviour and production cookies. The browser smoke test uses a fresh temporary database and Chromium to exercise the teacher and student workflows, including free-text classes. Set `CHROMIUM_PATH` if Chromium is elsewhere. Chromium is available in the prepared cloud environment; on other machines install a trusted Chromium build separately. Browser test screenshots are written to the OS temporary directory. Test accounts and votes are never written to your live database.
 
 ## Hosting
 

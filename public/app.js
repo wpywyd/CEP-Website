@@ -7,7 +7,7 @@ const escape = (value) =>
   );
 let showcase = { schools: [], projects: [] };
 let management = null;
-let registration = { schools: [], classes: [] };
+let registration = { schools: [] };
 let voter = null;
 let editing = null;
 let resetStudent = null;
@@ -137,21 +137,6 @@ async function loadRegistration() {
   const selected = $('register-school').value;
   $('register-school').innerHTML =
     '<option value="">Choose your school</option>' + options(registration.schools, selected);
-  renderClasses();
-}
-function renderClasses() {
-  const school = $('register-school').value;
-  const classes = registration.classes.filter((c) => c.schoolId === school);
-  const selected = $('register-class').value;
-  $('register-class').innerHTML =
-    `<option value="">${school ? 'Choose your class' : 'Choose your school first'}</option>` +
-    options(classes, selected);
-  $('register-class').disabled = !classes.length;
-  $('register-form').querySelector('button[type="submit"]').disabled = !classes.length;
-  $('registration-help').textContent =
-    school && !classes.length
-      ? 'This school has no classes configured yet. Ask your teacher to add your class before registering.'
-      : 'If your class is missing, contact your teacher.';
 }
 function showStudentAuth(register = false) {
   $('student-auth').hidden = false;
@@ -306,12 +291,11 @@ function openEditor(id = null) {
 }
 async function showTab(tab) {
   teacherTab = tab;
-  for (const name of ['manage', 'students', 'schools']) $(`${name}-panel`).hidden = tab !== name;
+  for (const name of ['manage', 'students']) $(`${name}-panel`).hidden = tab !== name;
   document
     .querySelectorAll('[data-tab]')
     .forEach((b) => (b.className = `button ${b.dataset.tab === tab ? 'primary' : 'secondary'}`));
   if (tab === 'students') await loadStudents();
-  if (tab === 'schools') await loadSchools();
 }
 async function loadStudents() {
   const { students } = await api('/api/students');
@@ -322,7 +306,7 @@ async function loadStudents() {
             `<article class="record"><div><h3>${escape(s.fullName)}</h3><p>${escape(schoolName(s.schoolId))} · ${escape(s.className)}</p><p>Username: ${escape(s.username)}</p></div><button class="button secondary" data-reset="${s.id}" data-name="${escape(s.fullName)}">Reset password</button></article>`
         )
         .join('')
-    : '<div class="empty">No students have registered yet. Add school classes under Schools & import first.</div>';
+    : '<div class="empty">No students have registered yet.</div>';
   $('round-controls').hidden = Boolean(management.user.schoolId);
   if (!management.user.schoolId) {
     const round = await api('/api/round');
@@ -331,19 +315,6 @@ async function loadStudents() {
     $('close-round').hidden = !round.isOpen;
     $('new-round').hidden = Boolean(round.isOpen);
   }
-}
-async function loadSchools() {
-  $('school-forms').innerHTML = management.schools
-    .map(
-      (s) =>
-        `<div class="record"><form class="school-form" data-school="${s.id}"><div class="form-grid"><label>School name<input name="name" value="${escape(s.name)}" maxlength="120" required></label><label>Short name<input name="shortName" value="${escape(s.shortName)}" maxlength="8" required></label></div><button class="button secondary" type="submit">Save school name</button><p class="form-message" role="status"></p></form></div>`
-    )
-    .join('');
-  $('class-school').innerHTML = options(management.schools);
-  const { classes } = await api('/api/classes');
-  $('classes-list').innerHTML = classes.length
-    ? `<h3>Configured classes</h3>${classes.map((c) => `<p>${escape(schoolName(c.schoolId))} · ${escape(c.name)}</p>`).join('')}`
-    : '<p>No classes yet. Add your school’s real classes to enable student registration.</p>';
 }
 async function navigate() {
   const hash = location.hash.slice(1);
@@ -376,7 +347,6 @@ $('public-projects').addEventListener('click', (e) => {
   if (button) details(button.dataset.details);
 });
 $('close-details').addEventListener('click', () => $('details').close());
-$('register-school').addEventListener('change', renderClasses);
 $('show-register').addEventListener('click', () => showStudentAuth(true));
 $('show-student-login').addEventListener('click', () => showStudentAuth(false));
 $('register-form').addEventListener('submit', (e) => {
@@ -625,56 +595,6 @@ $('new-round').addEventListener('submit', (e) => {
       await refreshShowcase();
     },
     'round-message'
-  );
-});
-$('school-forms').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const status = form.querySelector('[role="status"]');
-  const button = form.querySelector('button');
-  button.disabled = true;
-  try {
-    await api(`/api/schools/${form.dataset.school}`, 'PUT', Object.fromEntries(new FormData(form)));
-    await refreshShowcase();
-    await loadManagement();
-  } catch (error) {
-    status.textContent = error.message;
-    status.classList.add('error');
-  } finally {
-    button.disabled = false;
-  }
-});
-$('class-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  busy(
-    e.currentTarget,
-    async () => {
-      await api('/api/classes', 'POST', Object.fromEntries(new FormData($('class-form'))));
-      $('class-form').elements.name.value = '';
-      await loadSchools();
-      await loadRegistration();
-      message('class-message', 'Class added. Students can now select it when registering.');
-    },
-    'class-message'
-  );
-});
-$('import-form').addEventListener('submit', (e) => {
-  e.preventDefault();
-  busy(
-    e.currentTarget,
-    async () => {
-      const file = $('import-form').elements.backup.files[0];
-      if (file.size > 2_000_000) throw new Error('Backup must be smaller than 2 MB.');
-      const data = JSON.parse(await file.text());
-      const result = await api('/api/import', 'POST', data);
-      await loadManagement();
-      await refreshShowcase();
-      message(
-        'import-message',
-        `${result.imported} projects imported; ${result.skipped} existing records skipped. Offline votes and images were not imported.`
-      );
-    },
-    'import-message'
   );
 });
 window.addEventListener('hashchange', navigate);

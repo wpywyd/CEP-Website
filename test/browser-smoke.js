@@ -46,15 +46,7 @@ try {
   await teacher.locator('#login-form [name="password"]').fill(password);
   await teacher.locator('#login-form button[type="submit"]').click();
   await teacher.locator('#workspace').waitFor({ state: 'visible' });
-  await teacher.locator('[data-tab="schools"]').click();
-  await teacher.locator('#class-school').selectOption(schoolId);
-  await teacher.locator('#class-form [name="name"]').fill('Secondary 1A');
-  await teacher.locator('#class-form button[type="submit"]').click();
-  await teacher
-    .locator('#classes-list')
-    .getByText('Admiralty Secondary School · Secondary 1A')
-    .waitFor();
-  await teacher.locator('[data-tab="manage"]').click();
+  assert.equal(await teacher.locator('[data-tab="schools"]').count(), 0);
   await teacher.locator('#new-project').click();
   await teacher.locator('#project-school-search').fill('be');
   const matches = await teacher
@@ -93,7 +85,7 @@ try {
   await student.goto(`${origin}/#vote`);
   await student.locator('#show-register').click();
   await student.locator('#register-school').selectOption(schoolId);
-  await student.locator('#register-class').selectOption({ label: 'Secondary 1A' });
+  await student.locator('#register-class').fill('Secondary 1A');
   await student.locator('#register-form [name="fullName"]').fill('Alex Tan');
   await student.locator('#register-form [name="username"]').fill('alex.tan');
   await student.locator('#register-form [name="password"]').fill(password);
@@ -126,7 +118,7 @@ try {
   await other.goto(`${origin}/#vote`);
   await other.locator('#show-register').click();
   await other.locator('#register-school').selectOption(schoolId);
-  await other.locator('#register-class').selectOption({ label: 'Secondary 1A' });
+  await other.locator('#register-class').fill('Secondary 1A');
   await other.locator('#register-form [name="fullName"]').fill(' ALEX  TAN ');
   await other.locator('#register-form [name="username"]').fill('another.username');
   await other.locator('#register-form [name="password"]').fill(password);
@@ -176,7 +168,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(responses, []);
   console.log(
-    'PASS: teacher login, class setup, publishing, student registration, final vote, reload, duplicate rejection, second-device login, password recovery, privacy, and mobile layout.'
+    'PASS: teacher login, publishing, typed-class student registration, final vote, reload, duplicate rejection, second-device login, password recovery, privacy, and mobile layout.'
   );
 } finally {
   if (browser) await browser.close();
