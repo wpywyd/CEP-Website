@@ -120,12 +120,12 @@ function renderProjectSchoolChoices() {
   const input = $('project-school-search');
   const query = input.value.trim().toLocaleLowerCase('en-SG');
   const schools = (management?.schools || [])
-    .filter(school => school.isActive !== 0 && (!query || school.name.toLocaleLowerCase('en-SG').startsWith(query)))
+    .filter(school => school.isActive !== 0 && (!query || school.name.toLocaleLowerCase('en-SG').includes(query)))
     .slice(0, 50);
   const results = $('project-school-results');
   results.innerHTML = schools.length
     ? schools.map(school => `<button type="button" class="combobox-option" role="option" data-school-choice="${escape(school.id)}">${escape(school.name)}</button>`).join('')
-    : '<div class="combobox-empty">No school starts with those letters.</div>';
+    : '<div class="combobox-empty">No school name contains that text.</div>';
   results.hidden = false;
   input.setAttribute('aria-expanded', 'true');
 }

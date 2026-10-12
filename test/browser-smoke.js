@@ -31,9 +31,13 @@ try {
   await teacher.locator('#project-school-search').fill('be');
   const matches = await teacher.locator('#project-school-results .combobox-option').allTextContents();
   assert.ok(matches.includes('Beatty Secondary School'));
-  assert.ok(matches.every(name => name.toLowerCase().startsWith('be')));
+  assert.ok(matches.every(name => name.toLowerCase().includes('be')));
   await teacher.locator('#project-school-search').fill('Be');
   assert.deepEqual(await teacher.locator('#project-school-results .combobox-option').allTextContents(), matches);
+  await teacher.locator('#project-school-search').fill('girls');
+  const wordMatches = await teacher.locator('#project-school-results .combobox-option').allTextContents();
+  assert.ok(wordMatches.includes("Crescent Girls' School"));
+  assert.ok(wordMatches.every(name => name.toLowerCase().includes('girls')));
   await teacher.locator('#project-school-search').fill('ad');
   await teacher.getByRole('option', { name: 'Admiralty Secondary School' }).click();
   await teacher.locator('#project-form [name="teamName"]').fill('Team Alpha');
