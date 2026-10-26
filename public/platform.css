@@ -126,6 +126,30 @@ a {
 .current-project .current-content {
   grid-column: auto;
 }
+.editor-top .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #b8d5d1;
+  border-radius: 12px;
+  color: var(--teal-dark);
+  background: #edf8f6;
+  box-shadow: 0 4px 12px rgba(22, 140, 134, 0.08);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+.editor-top .back span {
+  font-size: 18px;
+  line-height: 1;
+}
+.editor-top .back:hover {
+  border-color: var(--teal);
+  background: white;
+  transform: translateX(-2px);
+}
 .project-actions {
   display: flex;
   align-items: center;
@@ -417,6 +441,14 @@ a {
   }
   .tab-list {
     flex-direction: column;
+  }
+  .editor-top {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .editor-top > div:first-child {
+    flex-wrap: wrap;
   }
   .project-actions {
     align-items: flex-start;

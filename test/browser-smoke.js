@@ -50,6 +50,12 @@ try {
   await student.locator('#create-team button').click();
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('[data-student-panel="project"]').first().click();
+  const dashboardBack = student.locator('#student-project-panel .back');
+  assert.match(await dashboardBack.innerText(), /←\s+Back to dashboard/);
+  assert.equal(
+    await dashboardBack.evaluate((element) => getComputedStyle(element).borderStyle),
+    'solid'
+  );
   const editor = student.locator('#project-editor-form');
   await editor.locator('[name="title"]').fill('Ocean Rescue');
   await editor.locator('[name="categoryId"]').selectOption({ index: 1 });
