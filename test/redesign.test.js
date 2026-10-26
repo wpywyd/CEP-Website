@@ -100,6 +100,31 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
   }
   const first = await register('Alex Tan', 'alex.tan');
   const second = await register('Jamie Lee', 'jamie.lee');
+  const transferStudent = await register('Transfer Student', 'transfer.student');
+  const transferHome = await request('/api/v2/student/home', 'GET', undefined, transferStudent);
+  const schoolTeacher = await loginTeacher('school.teacher');
+  const transferResult = await request(
+    `/api/v2/teacher/students/${transferHome.data.user.id}`,
+    'PATCH',
+    { schoolId: 'sg-ahmad-ibrahim-secondary-school', className: '2B' },
+    schoolTeacher
+  );
+  assert.equal(transferResult.status, 200);
+  assert.equal(
+    (await request('/api/v2/student/home', 'GET', undefined, transferStudent)).status,
+    401
+  );
+  assert.equal(
+    (
+      await request(
+        `/api/v2/teacher/students/${transferHome.data.user.id}`,
+        'PATCH',
+        { className: '2C' },
+        schoolTeacher
+      )
+    ).status,
+    403
+  );
   const firstProject = await createAndSubmit(first, 'Pixel Pioneers', 'Ocean Rescue');
   const secondProject = await createAndSubmit(second, 'Orbit Crew', 'Gravity Quest');
   const teacher = await loginTeacher('school.teacher');

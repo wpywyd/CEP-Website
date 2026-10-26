@@ -562,7 +562,15 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
           db.prepare('DELETE FROM student_sessions WHERE student_id=?').run(target.id);
         updates.push('disabled');
       }
-      if (input.fullName || input.className) {
+      if (input.fullName || input.className || input.schoolId) {
+        const schoolId = input.schoolId ? text(input.schoolId, 100, true) : target.school_id;
+        if (!db.prepare('SELECT 1 FROM schools WHERE id=? AND is_active=1').get(schoolId))
+          fail(400, 'Choose an active school.');
+        if (schoolId !== target.school_id && membership({ id: target.id }))
+          fail(
+            409,
+            'Remove this student from their team or archive their team before changing schools.'
+          );
         const fullName = input.fullName
           ? displayName(text(input.fullName, 120, true))
           : target.full_name;
@@ -572,19 +580,28 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         const classKey = normaliseIdentity(className);
         db.prepare('INSERT OR IGNORE INTO classes VALUES (?, ?, ?, ?)').run(
           id(),
-          target.school_id,
+          schoolId,
           className,
           classKey
         );
         const classId = db
           .prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?')
-          .get(target.school_id, classKey).id;
-        db.prepare('UPDATE students SET full_name=?, name_key=?, class_id=? WHERE id=?').run(
-          fullName,
-          normaliseIdentity(fullName),
-          classId,
-          target.id
-        );
+          .get(schoolId, classKey).id;
+        if (
+          db
+            .prepare(
+              'SELECT 1 FROM students WHERE school_id=? AND class_id=? AND name_key=? AND id<>?'
+            )
+            .get(schoolId, classId, normaliseIdentity(fullName), target.id)
+        )
+          fail(409, 'A student with this full name already exists in that school and class.');
+        db.prepare(
+          'UPDATE students SET full_name=?, name_key=?, class_id=?, school_id=? WHERE id=?'
+        ).run(fullName, normaliseIdentity(fullName), classId, schoolId, target.id);
+        if (schoolId !== target.school_id) {
+          db.prepare('DELETE FROM student_sessions WHERE student_id=?').run(target.id);
+          updates.push('school');
+        }
         updates.push('identity');
       }
       audit('teacher', user.id, 'student.update', 'student', target.id, { updates });

@@ -426,7 +426,7 @@ async function loadStaffStudents() {
     $('#staff-student-list').innerHTML = students
       .map(
         (student) =>
-          `<article class="student-record"><span class="note-icon teal-bg">${initials(student.fullName)}</span><div><h3>${escapeHtml(student.fullName)}</h3><p>${escapeHtml(student.className)} · ${escapeHtml(student.username)}${student.teamName ? ` · ${escapeHtml(student.teamName)}` : ''}</p></div><button class="secondary" data-edit-student="${student.id}" data-name="${escapeHtml(student.fullName)}" data-class="${escapeHtml(student.className)}">Edit details</button><button class="secondary" data-reset-student="${student.id}">Reset password</button><button class="secondary" data-disable-student="${student.id}" data-disabled="${student.isDisabled}">${student.isDisabled ? 'Enable' : 'Disable'}</button></article>`
+          `<article class="student-record"><span class="note-icon teal-bg">${initials(student.fullName)}</span><div><h3>${escapeHtml(student.fullName)}</h3><p>${escapeHtml(student.className)} · ${escapeHtml(student.username)}${student.teamName ? ` · ${escapeHtml(student.teamName)}` : ''}</p></div><button class="secondary" data-edit-student="${student.id}" data-name="${escapeHtml(student.fullName)}" data-class="${escapeHtml(student.className)}" data-school="${escapeHtml(student.schoolId)}">Edit details</button><button class="secondary" data-reset-student="${student.id}">Reset password</button><button class="secondary" data-disable-student="${student.id}" data-disabled="${student.isDisabled}">${student.isDisabled ? 'Enable' : 'Disable'}</button></article>`
       )
       .join('');
   } catch (error) {
@@ -572,18 +572,19 @@ document.addEventListener('click', async (event) => {
     }
   const editStudent = event.target.closest('[data-edit-student]');
   if (editStudent) {
-    const fullName = prompt('Student full name:', editStudent.dataset.name);
-    const className = fullName && prompt('Class:', editStudent.dataset.class);
-    if (fullName && className)
-      try {
-        await api(`/api/v2/teacher/students/${editStudent.dataset.editStudent}`, 'PATCH', {
-          fullName,
-          className
-        });
-        await loadStaffStudents();
-      } catch (error) {
-        alert(error.message);
-      }
+    const form = $('#student-details-form');
+    form.dataset.studentId = editStudent.dataset.editStudent;
+    form.elements.fullName.value = editStudent.dataset.name;
+    form.elements.className.value = editStudent.dataset.class;
+    const { schools } = await api('/api/registration');
+    form.elements.schoolId.innerHTML = schools
+      .map(
+        (school) => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)}</option>`
+      )
+      .join('');
+    form.elements.schoolId.value = editStudent.dataset.school;
+    message($('.form-message', form));
+    $('#student-details-dialog').showModal();
   }
   const removeMember = event.target.closest('[data-remove-member]');
   if (removeMember && confirm('Remove this student from the active team?')) {
@@ -931,3 +932,17 @@ else if (path === '/teacher' || path === '/admin') {
     showStaffPanel('admin');
 } else if (path === '/vote') await loadBallot();
 else if (path === '/results') loadResults();
+
+$('#student-details-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  submit(form, async () => {
+    await api(
+      `/api/v2/teacher/students/${form.dataset.studentId}`,
+      'PATCH',
+      Object.fromEntries(new FormData(form))
+    );
+    $('#student-details-dialog').close();
+    await loadStaffStudents();
+  });
+});
