@@ -89,6 +89,12 @@ try {
   await student.locator('#submit-project').click();
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
+  assert.equal(
+    await student
+      .locator('#current-project .project-banner img')
+      .evaluate((image) => image.complete && image.naturalWidth > 0),
+    true
+  );
   await student.locator('[data-student-panel="project"]').first().click();
   assert.equal(await student.locator('#submit-project').innerText(), 'Edit submission');
   await student.locator('#submit-project').click();

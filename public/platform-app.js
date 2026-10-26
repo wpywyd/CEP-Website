@@ -260,7 +260,8 @@ function renderTeam(team) {
         ? '<button class="link-button" id="archive-project">Archive project and team</button>'
         : '';
     $('#current-project').innerHTML = `
-      <div class="project-banner ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}>
+      <div class="project-banner">
+        ${project.coverImage ? `<img src="${escapeHtml(project.coverImage)}" alt="Project cover" />` : ''}
         <span class="status-pill">${escapeHtml(project.state.replaceAll('_', ' '))}</span>
       </div>
       <div class="current-content">
