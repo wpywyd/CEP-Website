@@ -151,6 +151,24 @@ function openSignin(mode = 'student-login') {
   $('#signin-dialog').showModal();
 }
 
+function showStudentDashboardLink() {
+  const entry = $('#open-signin');
+  entry.dataset.destination = 'student-dashboard';
+  entry.innerHTML = 'Dashboard <span>→</span>';
+  entry.setAttribute('aria-label', 'Return to student dashboard');
+}
+
+async function restoreStudentSession() {
+  try {
+    state.student = await api('/api/v2/student/home');
+    showStudentDashboardLink();
+    return true;
+  } catch (error) {
+    if (error.status === 401) return false;
+    throw error;
+  }
+}
+
 function setWorkspace(type) {
   document.body.classList.toggle('workspace-mode', Boolean(type));
   $('#public-header').hidden = Boolean(type);
@@ -552,7 +570,13 @@ document.addEventListener('click', async (event) => {
     await loadAdmin();
   }
 });
-$('#open-signin').addEventListener('click', () => openSignin());
+$('#open-signin').addEventListener('click', () => {
+  if ($('#open-signin').dataset.destination === 'student-dashboard') {
+    location.href = '/student';
+    return;
+  }
+  openSignin();
+});
 $$('[data-auth]').forEach((button) =>
   button.addEventListener('click', () => showAuth(button.dataset.auth))
 );
@@ -763,9 +787,10 @@ $('#confirm-vote').addEventListener('click', async () => {
 for (const id of ['public-search', 'public-school', 'public-category', 'public-year'])
   $(`#${id}`).addEventListener('input', renderPublicProjects);
 
+const path = location.pathname.replace(/\/$/, '') || '/';
 await populateRegistration();
 await loadShowcase();
-const path = location.pathname.replace(/\/$/, '') || '/';
+if (!['/student', '/teacher', '/admin'].includes(path)) await restoreStudentSession();
 if (path === '/student') await loadStudent();
 else if (path === '/teacher' || path === '/admin') {
   if ((await loadStaff()) && path === '/admin' && !state.staff.user.schoolId)

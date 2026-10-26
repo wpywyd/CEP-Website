@@ -72,6 +72,13 @@ try {
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
 
+  await student.locator('#student-shell .app-brand').click();
+  await student.waitForURL(origin + '/');
+  assert.equal(await student.locator('#open-signin').innerText(), 'Dashboard →');
+  await student.locator('#open-signin').click();
+  await student.waitForURL(origin + '/student');
+  await student.locator('#team-dashboard').waitFor({ state: 'visible' });
+
   const teacherContext = await browser.newContext();
   const teacher = await teacherContext.newPage();
   inspect(teacher);
