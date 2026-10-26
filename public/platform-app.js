@@ -333,7 +333,11 @@ function fillProjectEditor(project) {
   $$('input,select,textarea,button[type=submit]', form).forEach(
     (field) => (field.disabled = locked)
   );
-  $('#submit-project').disabled = locked || !project;
+  const reviewButton = $('#submit-project');
+  reviewButton.disabled = !project;
+  reviewButton.dataset.action = locked ? 'withdraw' : 'submit';
+  reviewButton.textContent = locked ? 'Edit submission' : 'Submit for review';
+  if (locked) $('#save-status').textContent = 'Awaiting teacher review';
 }
 async function imageData(file) {
   if (!file) return state.coverImage;
@@ -797,6 +801,19 @@ for (const eventName of ['input', 'change'])
     );
   });
 $('#submit-project').addEventListener('click', async () => {
+  if ($('#submit-project').dataset.action === 'withdraw') {
+    $('#submit-project').disabled = true;
+    try {
+      await api('/api/v2/project/withdraw', 'POST', {});
+      await loadStudent();
+      showStudentPanel('project');
+      message('#project-message', 'Submission unlocked. Make your changes and submit it again.');
+    } catch (error) {
+      message('#project-message', error.message, true);
+      $('#submit-project').disabled = false;
+    }
+    return;
+  }
   const form = $('#project-editor-form');
   if (!form.reportValidity()) {
     message('#project-message', 'Complete every required field before submitting.', true);

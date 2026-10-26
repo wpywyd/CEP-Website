@@ -89,6 +89,17 @@ try {
   await student.locator('#submit-project').click();
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
+  await student.locator('[data-student-panel="project"]').first().click();
+  assert.equal(await student.locator('#submit-project').innerText(), 'Edit submission');
+  await student.locator('#submit-project').click();
+  await student.waitForFunction(
+    () => !document.querySelector('#project-editor-form [name="title"]').disabled
+  );
+  assert.equal(await student.locator('#project-editor-form [name="title"]').isEnabled(), true);
+  await student.getByText('Submission unlocked. Make your changes and submit it again.').waitFor();
+  await student.locator('#submit-project').click();
+  await student.locator('#team-dashboard').waitFor({ state: 'visible' });
+  await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
   assert.equal(
     await student.locator('.project-actions').evaluate((element) => getComputedStyle(element).gap),
     '16px 24px'

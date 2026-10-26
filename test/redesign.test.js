@@ -90,6 +90,12 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     assert.equal((await request('/api/v2/project/submit', 'POST', {}, cookie)).status, 400);
     assert.equal((await uploadVideo(cookie)).status, 200);
     assert.equal((await request('/api/v2/project/submit', 'POST', {}, cookie)).status, 200);
+    assert.equal((await request('/api/v2/project/withdraw', 'POST', {}, cookie)).status, 200);
+    assert.equal(
+      (await request('/api/v2/student/home', 'GET', undefined, cookie)).data.team.project.state,
+      'draft'
+    );
+    assert.equal((await request('/api/v2/project/submit', 'POST', {}, cookie)).status, 200);
     return saved.data.project.id;
   }
   const first = await register('Alex Tan', 'alex.tan');

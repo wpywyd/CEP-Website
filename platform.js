@@ -368,6 +368,22 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       audit('student', user.id, 'project.submit', 'project', project.id);
       return json(res, 200, { ok: true });
     }
+    if (path === '/api/v2/project/withdraw' && req.method === 'POST') {
+      const user = student(req);
+      const team = membership(user);
+      if (!team) fail(409, 'No active team.');
+      const project = teamProject(team.teamId);
+      if (!project || project.state !== 'submitted')
+        fail(409, 'Only a submission awaiting review can be edited.');
+      const changed = db
+        .prepare(
+          "UPDATE project_revisions SET state='draft', submitted_at=NULL WHERE id=? AND state='submitted'"
+        )
+        .run(project.revisionId).changes;
+      if (!changed) fail(409, 'This submission has already been reviewed.');
+      audit('student', user.id, 'project.withdraw', 'project', project.id);
+      return json(res, 200, { ok: true });
+    }
     if (path === '/api/v2/project/archive' && req.method === 'POST') {
       const user = student(req);
       const team = membership(user);
