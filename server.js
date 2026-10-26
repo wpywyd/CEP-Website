@@ -104,7 +104,7 @@ export function createApp({
     if (!token) return null;
     return db
       .prepare(
-        `SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>? AND t.is_disabled=0`
+        `SELECT t.id, t.username, t.full_name AS fullName, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>? AND t.is_disabled=0`
       )
       .get(hash(token), Date.now());
   }

@@ -133,6 +133,7 @@ export function openStore(filename) {
   };
   ensureColumn('students', 'is_disabled', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('teachers', 'is_disabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('teachers', 'full_name', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('team_members', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
   ensureColumn('voting_rounds', 'status', "TEXT NOT NULL DEFAULT 'open'");
   ensureColumn('voting_rounds', 'opens_at', 'TEXT');

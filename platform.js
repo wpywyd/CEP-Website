@@ -627,7 +627,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
           .all(),
         teachers: db
           .prepare(
-            'SELECT t.id, t.username, t.school_id AS schoolId, t.is_disabled AS isDisabled, s.name AS schoolName FROM teachers t LEFT JOIN schools s ON s.id=t.school_id ORDER BY t.username'
+            'SELECT t.id, t.username, t.full_name AS fullName, t.school_id AS schoolId, t.is_disabled AS isDisabled, s.name AS schoolName FROM teachers t LEFT JOIN schools s ON s.id=t.school_id ORDER BY t.username'
           )
           .all(),
         rounds: db
@@ -695,8 +695,14 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         fail(400, 'Choose an active school.');
       const teacherId = id();
       db.prepare(
-        'INSERT INTO teachers (id,username,password_hash,school_id,is_disabled) VALUES (?,?,?,?,0)'
-      ).run(teacherId, username, passwordHash(input.password), schoolId);
+        'INSERT INTO teachers (id,username,password_hash,school_id,full_name,is_disabled) VALUES (?,?,?,?,?,0)'
+      ).run(
+        teacherId,
+        username,
+        passwordHash(input.password),
+        schoolId,
+        displayName(text(input.fullName, 120, true))
+      );
       audit('teacher', user.id, 'teacher.create', 'teacher', teacherId, { schoolId });
       return json(res, 201, { id: teacherId });
     }
@@ -709,6 +715,11 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         fail(400, 'You cannot disable your own account.');
       const existing = db.prepare('SELECT * FROM teachers WHERE id=?').get(teacherRoute[1]);
       if (!existing) fail(404, 'Teacher not found.');
+      if (input.fullName !== undefined)
+        db.prepare('UPDATE teachers SET full_name=? WHERE id=?').run(
+          displayName(text(input.fullName, 120, true)),
+          existing.id
+        );
       if (typeof input.disabled === 'boolean') {
         db.prepare('UPDATE teachers SET is_disabled=? WHERE id=?').run(
           Number(input.disabled),

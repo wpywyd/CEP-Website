@@ -393,8 +393,8 @@ async function loadStaff() {
   setWorkspace('staff');
   showStaffPanel('reviews');
   const { user, reviews } = state.staff;
-  $('#staff-name').textContent = user.username;
-  $('#staff-initials').textContent = initials(user.username);
+  $('#staff-name').textContent = user.fullName || user.username;
+  $('#staff-initials').textContent = initials(user.fullName || user.username);
   $('#staff-school').textContent = user.schoolId ? 'School teacher' : 'Programme admin';
   $('#admin-nav').hidden = Boolean(user.schoolId);
   $('#review-count').textContent = reviews.length;
@@ -466,7 +466,7 @@ async function loadAdmin() {
   $('#teacher-list').innerHTML = dashboard.teachers
     .map(
       (item) =>
-        `<div class="management-row"><div><strong>${escapeHtml(item.username)}</strong><small>${escapeHtml(item.schoolName || 'Programme administrator')}</small></div><button data-admin-teacher="${item.id}" data-disabled="${item.isDisabled}">${item.isDisabled ? 'Enable' : 'Disable'}</button><button data-reset-teacher="${item.id}">Reset</button></div>`
+        `<div class="management-row"><div><strong>${escapeHtml(item.username)}</strong>${item.fullName ? `<small>${escapeHtml(item.fullName)}</small>` : ''}<small>${escapeHtml(item.schoolName || 'Programme administrator')}</small></div><button data-edit-teacher-name="${item.id}" data-name="${escapeHtml(item.fullName || '')}">Edit name</button><button data-admin-teacher="${item.id}" data-disabled="${item.isDisabled}">${item.isDisabled ? 'Enable' : 'Disable'}</button><button data-reset-teacher="${item.id}">Reset</button></div>`
     )
     .join('');
   $('#school-list').innerHTML = dashboard.schoolList
@@ -605,6 +605,25 @@ document.addEventListener('click', async (event) => {
     await loadStudent();
   }
   const adminTeacher = event.target.closest('[data-admin-teacher]');
+  const teacherName = event.target.closest('[data-edit-teacher-name]');
+  if (teacherName) {
+    const fullName = prompt('Teacher full name:', teacherName.dataset.name);
+    if (fullName?.trim()) {
+      try {
+        await api(`/api/v2/admin/teachers/${teacherName.dataset.editTeacherName}`, 'PATCH', {
+          fullName
+        });
+        await loadAdmin();
+        if (teacherName.dataset.editTeacherName === state.staff.user.id) {
+          state.staff.user.fullName = fullName.trim();
+          $('#staff-name').textContent = fullName.trim();
+          $('#staff-initials').textContent = initials(fullName.trim());
+        }
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  }
   if (adminTeacher) {
     await api(`/api/v2/admin/teachers/${adminTeacher.dataset.adminTeacher}`, 'PATCH', {
       disabled: adminTeacher.dataset.disabled !== '1'
