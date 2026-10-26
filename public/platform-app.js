@@ -68,7 +68,7 @@ function coverMarkup(cover, className) {
 function projectCard(project, ballot = false) {
   const content = `${coverMarkup(project.coverImage, 'project-image')}<div class="card-body"><span class="category">${escapeHtml(project.category || 'Project')}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)}</p><small>${escapeHtml(project.schoolName)}</small>${ballot ? '<span class="select-label">Select this project</span>' : ''}</div>`;
   return ballot
-    ? `<label class="ballot-card"><input type="radio" name="projectId" value="${project.id}" />${content}</label>`
+    ? `<article class="ballot-card"><label class="ballot-selection"><input type="radio" name="projectId" value="${project.id}" aria-label="Vote for ${escapeHtml(project.title)}" />${content}</label><div class="ballot-details"><button type="button" class="secondary" data-project="${project.id}">View details</button></div></article>`
     : `<button class="project-card" data-project="${project.id}">${content}</button>`;
 }
 

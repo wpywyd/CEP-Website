@@ -441,6 +441,16 @@ a {
 .ballot-card .card-body {
   cursor: pointer;
 }
+.ballot-selection {
+  display: block;
+  cursor: pointer;
+}
+.ballot-details {
+  padding: 0 20px 20px;
+}
+.ballot-details button {
+  width: 100%;
+}
 .sticky-vote[hidden] {
   display: none;
 }

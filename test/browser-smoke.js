@@ -212,6 +212,30 @@ try {
     true
   );
 
+  db.prepare('INSERT INTO round_projects VALUES (?, ?)').run(
+    'round-1',
+    db.prepare('SELECT id FROM showcase_projects LIMIT 1').get().id
+  );
+  const voter = await publicPage.context().request.post(`${origin}/api/students/register`, {
+    headers: { Origin: origin, 'X-CEP-Request': '1' },
+    data: {
+      schoolId,
+      className: '2B',
+      fullName: 'Jamie Lee',
+      username: 'jamie.lee',
+      password,
+      fullNameConfirmed: true
+    }
+  });
+  assert.equal(voter.status(), 201);
+  await publicPage.goto(`${origin}/vote`);
+  await publicPage.locator('.ballot-card input').check();
+  await publicPage.getByRole('button', { name: 'View details', exact: true }).click();
+  await publicPage.locator('#project-dialog').waitFor({ state: 'visible' });
+  assert.equal(await publicPage.locator('#project-detail h2').innerText(), 'Ocean Rescue');
+  await publicPage.locator('#project-dialog [data-close]').click();
+  assert.equal(await publicPage.locator('.ballot-card input').isChecked(), true);
+
   assert.deepEqual(errors, []);
   assert.deepEqual(badResponses, []);
   console.log(
