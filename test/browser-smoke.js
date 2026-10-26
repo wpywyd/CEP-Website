@@ -56,6 +56,12 @@ try {
     await dashboardBack.evaluate((element) => getComputedStyle(element).borderStyle),
     'solid'
   );
+  const votingBack = student.locator('#vote-view .back');
+  assert.match(await votingBack.innerText(), /←\s+Back to dashboard/);
+  assert.equal(
+    await votingBack.evaluate((element) => getComputedStyle(element).borderStyle),
+    'solid'
+  );
   const editor = student.locator('#project-editor-form');
   await editor.locator('[name="title"]').fill('Ocean Rescue');
   await editor.locator('[name="categoryId"]').selectOption({ index: 1 });

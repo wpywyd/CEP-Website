@@ -840,11 +840,29 @@ body:has([data-view='vote'].active) .public-header {
   gap: 14px;
 }
 .back {
-  border: 0;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #b8d5d1;
+  border-radius: 12px;
   color: var(--teal-dark);
-  background: transparent;
+  background: #edf8f6;
+  box-shadow: 0 4px 12px rgba(22, 140, 134, 0.08);
   font-weight: 800;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+.back > span {
+  font-size: 18px;
+  line-height: 1;
+}
+.back:hover {
+  border-color: var(--teal);
+  background: white;
+  transform: translateX(-2px);
 }
 .editor-top h1 {
   font-size: 24px;
