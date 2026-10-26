@@ -139,6 +139,7 @@ export function openStore(filename) {
   ensureColumn('voting_rounds', 'opens_at', 'TEXT');
   ensureColumn('voting_rounds', 'closes_at', 'TEXT');
   ensureColumn('voting_rounds', 'ballot_locked', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('voting_rounds', 'is_deleted', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('project_revisions', 'video_file', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('project_revisions', 'video_mime', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('project_revisions', 'video_name', "TEXT NOT NULL DEFAULT ''");

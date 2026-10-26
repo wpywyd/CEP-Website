@@ -632,7 +632,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
           .all(),
         rounds: db
           .prepare(
-            'SELECT id, name, status, opens_at AS opensAt, closes_at AS closesAt FROM voting_rounds ORDER BY created_at DESC'
+            'SELECT id, name, status, opens_at AS opensAt, closes_at AS closesAt FROM voting_rounds WHERE is_deleted=0 ORDER BY created_at DESC'
           )
           .all(),
         audits: db.prepare('SELECT * FROM audit_events ORDER BY created_at DESC LIMIT 20').all()
@@ -807,11 +807,26 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       audit('teacher', user.id, 'round.create', 'round', roundId);
       return json(res, 201, { id: roundId });
     }
+    const deleteRound = /^\/api\/v2\/admin\/rounds\/([a-z0-9-]{1,64})$/.exec(path);
+    if (deleteRound && req.method === 'DELETE') {
+      const user = teacher(req);
+      requireAdmin(user);
+      const round = db
+        .prepare('SELECT * FROM voting_rounds WHERE id=? AND is_deleted=0')
+        .get(deleteRound[1]);
+      if (!round) fail(404, 'Round not found.');
+      if (round.status === 'open') fail(409, 'Close this voting round before deleting it.');
+      db.prepare('UPDATE voting_rounds SET is_deleted=1 WHERE id=?').run(round.id);
+      audit('teacher', user.id, 'round.delete', 'round', round.id, { name: round.name });
+      return json(res, 200, { ok: true });
+    }
     const roundAction = /^\/api\/v2\/admin\/rounds\/([a-z0-9-]{1,64})\/(open|close)$/.exec(path);
     if (roundAction && req.method === 'POST') {
       const user = teacher(req);
       requireAdmin(user);
-      const round = db.prepare('SELECT * FROM voting_rounds WHERE id=?').get(roundAction[1]);
+      const round = db
+        .prepare('SELECT * FROM voting_rounds WHERE id=? AND is_deleted=0')
+        .get(roundAction[1]);
       if (!round) fail(404, 'Round not found.');
       if (roundAction[2] === 'open') {
         if (

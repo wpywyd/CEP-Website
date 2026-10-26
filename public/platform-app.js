@@ -478,7 +478,7 @@ async function loadAdmin() {
   $('#round-list').innerHTML = dashboard.rounds
     .map(
       (item) =>
-        `<div class="management-row"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.status)}</small></div>${item.status === 'open' ? `<button data-close-voting="${item.id}">Close</button>` : ''}</div>`
+        `<div class="management-row"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.status)}</small></div>${item.status === 'open' ? `<button data-close-voting="${item.id}">Close</button>` : `<button data-delete-voting="${item.id}">Delete</button>`}</div>`
     )
     .join('');
   $('#audit-list').innerHTML = dashboard.audits
@@ -670,6 +670,17 @@ document.addEventListener('click', async (event) => {
       isActive: toggleSchool.dataset.active !== '1'
     });
     await loadAdmin();
+  }
+  const deleteVoting = event.target.closest('[data-delete-voting]');
+  if (deleteVoting && confirm('Delete this voting round? It will be removed from the list.')) {
+    deleteVoting.disabled = true;
+    try {
+      await api(`/api/v2/admin/rounds/${deleteVoting.dataset.deleteVoting}`, 'DELETE', {});
+      await loadAdmin();
+    } catch (error) {
+      alert(error.message);
+      deleteVoting.disabled = false;
+    }
   }
   const closeVoting = event.target.closest('[data-close-voting]');
   if (closeVoting && confirm('Close this voting round? No more votes can be submitted.')) {

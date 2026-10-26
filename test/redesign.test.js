@@ -144,12 +144,21 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     );
   }
   const admin = await loginTeacher('coordinator');
+  assert.equal((await request('/api/v2/admin/rounds/round-1', 'DELETE', {}, admin)).status, 409);
   assert.equal(
     (await request('/api/v2/admin/rounds/round-1/close', 'POST', {}, admin)).status,
     200
   );
   assert.equal((await request('/api/v2/ballot', 'GET', undefined, first)).data.round, null);
   assert.equal((await request('/api/v2/showcase')).data.round, null);
+  assert.equal((await request('/api/v2/admin/rounds/round-1', 'DELETE', {}, teacher)).status, 403);
+  assert.equal((await request('/api/v2/admin/rounds/round-1', 'DELETE', {}, admin)).status, 200);
+  assert.equal(
+    (await request('/api/v2/admin/dashboard', 'GET', undefined, admin)).data.rounds.some(
+      (item) => item.id === 'round-1'
+    ),
+    false
+  );
   const round = await request(
     '/api/v2/admin/rounds',
     'POST',
