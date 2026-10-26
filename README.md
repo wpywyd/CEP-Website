@@ -62,3 +62,7 @@ npm run backup -- /private/backups/portal-backup.sqlite
 The backup command uses SQLite's online backup API and includes students, credentials, sessions and all rounds. Restrict access to backups accordingly. To restore, stop the application, preserve the existing database, replace it with the backup, remove only the old matching `-wal` and `-shm` sidecars, then restart with the same `DATA_DIR`. A restored snapshot also restores sessions present at backup time; revoke sessions if recovering from an access incident.
 
 The cloud development environment is not public hosting. A live deployment still requires choosing and configuring your hosting account, domain and persistent storage.
+
+## Redesign prototype
+
+The clickable redesign prototype is available at `http://localhost:3000/prototype`. Use the selector in the top banner to review the public homepage, student dashboard, project editor, teacher review, administrator workspace, ballot, and live results. It contains sample content only and does not read or change application data.

@@ -201,6 +201,10 @@ export function createApp({
           '/': ['index.html', 'text/html'],
           '/teacher': ['index.html', 'text/html'],
           '/teacher/': ['index.html', 'text/html'],
+          '/prototype': ['prototype.html', 'text/html'],
+          '/prototype/': ['prototype.html', 'text/html'],
+          '/prototype.css': ['prototype.css', 'text/css'],
+          '/prototype.js': ['prototype.js', 'text/javascript'],
           '/app.js': ['app.js', 'text/javascript'],
           '/style.css': ['style.css', 'text/css'],
           '/school-search.css': ['school-search.css', 'text/css'],
@@ -209,7 +213,12 @@ export function createApp({
         const file = files[path];
         if (!file) fail(404, 'Page not found.');
         const content = await readFile(resolve(root, 'public', file[0]));
-        if (path === '/teacher' || path === '/teacher/') {
+        if (
+          path === '/teacher' ||
+          path === '/teacher/' ||
+          path === '/prototype' ||
+          path === '/prototype/'
+        ) {
           res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         }
         res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` });
