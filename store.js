@@ -80,7 +80,68 @@ export function openStore(filename) {
     );
     CREATE INDEX IF NOT EXISTS student_votes_project ON student_votes(project_id, round_id);
     CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, is_active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS teams (
+      id TEXT PRIMARY KEY, school_id TEXT NOT NULL REFERENCES schools(id), name TEXT NOT NULL,
+      owner_id TEXT NOT NULL REFERENCES students(id), join_code_hash TEXT NOT NULL UNIQUE,
+      is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS team_members (
+      team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      student_id TEXT NOT NULL REFERENCES students(id), joined_at TEXT NOT NULL,
+      PRIMARY KEY(team_id, student_id)
+    );
+    CREATE TABLE IF NOT EXISTS showcase_projects (
+      id TEXT PRIMARY KEY, team_id TEXT NOT NULL UNIQUE REFERENCES teams(id), school_id TEXT NOT NULL REFERENCES schools(id),
+      category_id TEXT REFERENCES categories(id), year INTEGER NOT NULL, is_featured INTEGER NOT NULL DEFAULT 0,
+      is_archived INTEGER NOT NULL DEFAULT 0, published_revision_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS project_revisions (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES showcase_projects(id) ON DELETE CASCADE,
+      version INTEGER NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL, learning_story TEXT NOT NULL,
+      project_url TEXT NOT NULL, cover_image TEXT NOT NULL, tags_json TEXT NOT NULL,
+      state TEXT NOT NULL, feedback TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, submitted_at TEXT,
+      reviewed_at TEXT, reviewed_by TEXT REFERENCES teachers(id), UNIQUE(project_id, version)
+    );
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL, message TEXT NOT NULL, is_read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS round_projects (
+      round_id TEXT NOT NULL REFERENCES voting_rounds(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES showcase_projects(id), PRIMARY KEY(round_id, project_id)
+    );
+    CREATE TABLE IF NOT EXISTS round_schools (
+      round_id TEXT NOT NULL REFERENCES voting_rounds(id) ON DELETE CASCADE,
+      school_id TEXT NOT NULL REFERENCES schools(id), PRIMARY KEY(round_id, school_id)
+    );
+    CREATE TABLE IF NOT EXISTS platform_votes (
+      student_id TEXT NOT NULL REFERENCES students(id), round_id TEXT NOT NULL REFERENCES voting_rounds(id),
+      project_id TEXT NOT NULL REFERENCES showcase_projects(id), created_at TEXT NOT NULL,
+      PRIMARY KEY(student_id, round_id)
+    );
+    CREATE TABLE IF NOT EXISTS audit_events (
+      id TEXT PRIMARY KEY, actor_type TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL,
+      target_type TEXT NOT NULL, target_id TEXT NOT NULL, details_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
   `);
+  const ensureColumn = (table, column, definition) => {
+    if (!db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name=?`).get(column))
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  };
+  ensureColumn('students', 'is_disabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('teachers', 'is_disabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('team_members', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('voting_rounds', 'status', "TEXT NOT NULL DEFAULT 'open'");
+  ensureColumn('voting_rounds', 'opens_at', 'TEXT');
+  ensureColumn('voting_rounds', 'closes_at', 'TEXT');
+  ensureColumn('voting_rounds', 'ballot_locked', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec('DROP INDEX IF EXISTS one_active_team_per_student');
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS one_active_team_per_student ON team_members(student_id) WHERE is_active=1'
+  );
   if (!db.prepare("SELECT 1 FROM pragma_table_info('schools') WHERE name='is_active'").get()) {
     db.exec('ALTER TABLE schools ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
   }
@@ -91,8 +152,14 @@ export function openStore(filename) {
     'INSERT INTO schools (id, name, short_name, is_active) VALUES (?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, short_name=excluded.short_name, is_active=1'
   );
   for (const school of SECONDARY_SCHOOLS) seed.run(school.id, school.name, school.shortName);
+  const category = db.prepare(
+    'INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES (?, ?, ?)'
+  );
+  ['Sustainability', 'Science', 'Wellbeing', 'Education', 'Community', 'Creativity'].forEach(
+    (name, index) => category.run(`category-${index + 1}`, name, index)
+  );
   db.prepare(
-    "INSERT OR IGNORE INTO voting_rounds VALUES ('round-1', 'Student Choice Award', 1, ?)"
+    "INSERT OR IGNORE INTO voting_rounds (id, name, is_open, created_at) VALUES ('round-1', 'Student Choice Award', 1, ?)"
   ).run(new Date().toISOString());
   return db;
 }
@@ -107,7 +174,7 @@ export function provisionTeacher(db, username, password, schoolId = null) {
   const existing = db.prepare('SELECT id FROM teachers WHERE username=?').get(username);
   const id = existing?.id || randomBytes(16).toString('hex');
   db.prepare(
-    `INSERT INTO teachers VALUES (?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, school_id=excluded.school_id`
+    `INSERT INTO teachers (id, username, password_hash, school_id) VALUES (?, ?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, school_id=excluded.school_id, is_disabled=0`
   ).run(id, username, passwordHash(password), schoolId);
   db.prepare('DELETE FROM sessions WHERE teacher_id=?').run(id);
   return id;

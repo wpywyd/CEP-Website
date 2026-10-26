@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import { createPlatform } from './platform.js';
 import {
   openStore,
   hash,
@@ -100,7 +101,7 @@ export function createApp({
     if (!token) fail(401, 'Please sign in as a teacher.');
     const user = db
       .prepare(
-        `SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>?`
+        `SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>? AND t.is_disabled=0`
       )
       .get(hash(token), Date.now());
     if (!user) fail(401, 'Your session expired. Please sign in again.');
@@ -120,7 +121,7 @@ export function createApp({
     if (!token) fail(401, 'Please sign in as a student.');
     const user = db
       .prepare(
-        `SELECT u.id, u.username, u.school_id AS schoolId, u.class_id AS classId, u.full_name AS fullName FROM student_sessions s JOIN students u ON u.id=s.student_id WHERE s.token_hash=? AND s.expires>?`
+        `SELECT u.id, u.username, u.school_id AS schoolId, u.class_id AS classId, u.full_name AS fullName FROM student_sessions s JOIN students u ON u.id=s.student_id WHERE s.token_hash=? AND s.expires>? AND u.is_disabled=0`
       )
       .get(hash(token), Date.now());
     if (!user) fail(401, 'Your session expired. Please sign in again.');
@@ -183,13 +184,14 @@ export function createApp({
       fail(400, 'Invalid JSON object.');
     }
   }
+  const platform = createPlatform({ db, fail, text, body, json, teacher, student, canManage });
   const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
     );
     res.setHeader('Cache-Control', 'no-store');
     if (secureCookies) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
@@ -198,13 +200,24 @@ export function createApp({
       if (!path.startsWith('/api/')) {
         if (req.method !== 'GET' && req.method !== 'HEAD') fail(405, 'Method not allowed.');
         const files = {
-          '/': ['index.html', 'text/html'],
-          '/teacher': ['index.html', 'text/html'],
-          '/teacher/': ['index.html', 'text/html'],
+          '/': ['platform.html', 'text/html'],
+          '/student': ['platform.html', 'text/html'],
+          '/student/': ['platform.html', 'text/html'],
+          '/vote': ['platform.html', 'text/html'],
+          '/vote/': ['platform.html', 'text/html'],
+          '/results': ['platform.html', 'text/html'],
+          '/results/': ['platform.html', 'text/html'],
+          '/teacher': ['platform.html', 'text/html'],
+          '/teacher/': ['platform.html', 'text/html'],
+          '/admin': ['platform.html', 'text/html'],
+          '/admin/': ['platform.html', 'text/html'],
+          '/legacy': ['index.html', 'text/html'],
           '/prototype': ['prototype.html', 'text/html'],
           '/prototype/': ['prototype.html', 'text/html'],
           '/prototype.css': ['prototype.css', 'text/css'],
           '/prototype.js': ['prototype.js', 'text/javascript'],
+          '/platform.css': ['platform.css', 'text/css'],
+          '/platform-app.js': ['platform-app.js', 'text/javascript'],
           '/app.js': ['app.js', 'text/javascript'],
           '/style.css': ['style.css', 'text/css'],
           '/school-search.css': ['school-search.css', 'text/css'],
@@ -232,6 +245,7 @@ export function createApp({
         if (req.headers['x-cep-request'] !== '1') fail(403, 'Missing request protection header.');
       }
       const ip = req.socket.remoteAddress; // Deliberately do not trust arbitrary forwarding headers.
+      if (path.startsWith('/api/v2/')) return await platform.handle(req, res, path);
       if (path === '/api/health' && req.method === 'GET') {
         db.prepare('SELECT 1').get();
         return json(res, 200, { ok: true });
@@ -258,7 +272,7 @@ export function createApp({
         const password = passwordValue(input.password, false);
         const user = db.prepare('SELECT * FROM teachers WHERE username=?').get(username);
         const valid = passwordMatches(password, user?.password_hash || dummyHash);
-        if (!user || !valid) fail(401, 'Username or password is incorrect.');
+        if (!user || user.is_disabled || !valid) fail(401, 'Username or password is incorrect.');
         db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now());
         const token = randomBytes(32).toString('hex');
         db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(
@@ -421,7 +435,9 @@ export function createApp({
           fail(409, 'That username is already taken. Choose another username.');
         const id = randomBytes(16).toString('hex');
         try {
-          db.prepare('INSERT INTO students VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+          db.prepare(
+            'INSERT INTO students (id, username, password_hash, school_id, class_id, full_name, name_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).run(
             id,
             username,
             passwordHash(password),
@@ -454,7 +470,7 @@ export function createApp({
           passwordValue(input.password, false),
           user?.password_hash || dummyHash
         );
-        if (!user || !valid) fail(401, 'Username or password is incorrect.');
+        if (!user || user.is_disabled || !valid) fail(401, 'Username or password is incorrect.');
         startStudentSession(res, user.id);
         return json(res, 200, { ok: true });
       }
@@ -589,11 +605,9 @@ export function createApp({
           fail(409, 'Close the current voting round first.');
         const name = text((await body(req)).name, 120, true);
         const id = randomBytes(16).toString('hex');
-        db.prepare('INSERT INTO voting_rounds VALUES (?, ?, 1, ?)').run(
-          id,
-          name,
-          new Date().toISOString()
-        );
+        db.prepare(
+          'INSERT INTO voting_rounds (id, name, is_open, created_at) VALUES (?, ?, 1, ?)'
+        ).run(id, name, new Date().toISOString());
         return json(res, 201, latestRound());
       }
       if (path === '/api/import' && req.method === 'POST') {

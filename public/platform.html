@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Explore, create, and celebrate student projects." />
+    <title>Project Showcase</title>
+    <link rel="icon" href="/artwork.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/prototype.css" />
+    <link rel="stylesheet" href="/platform.css" />
+    <script type="module" src="/platform-app.js"></script>
+  </head>
+  <body>
+    <header id="public-header" class="site-header public-header">
+      <a class="brand" href="/">
+        <span class="brand-mark">
+          <span>✦</span>
+          <span>▶</span>
+        </span>
+        <strong>
+          Project
+          <br />
+          Showcase
+        </strong>
+      </a>
+      <nav>
+        <a href="/">Explore</a>
+        <a href="/results">Results</a>
+        <button id="open-signin" class="sign-in">
+          Sign in
+          <span>→</span>
+        </button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="public-view">
+        <div class="spotlight page-width">
+          <div class="spotlight-copy">
+            <span class="eyebrow coral">STUDENT PROJECT SHOWCASE</span>
+            <h1>
+              Big ideas.
+              <br />
+              <em>Made playable.</em>
+            </h1>
+            <p>Discover games imagined, designed, and built by student teams across Singapore.</p>
+            <div class="button-row">
+              <a class="primary" href="#projects">Explore projects</a>
+              <a class="link-button" href="/vote">Vote in the live round →</a>
+            </div>
+          </div>
+          <article id="featured-project" class="featured-card"></article>
+        </div>
+        <section id="round-strip" class="round-strip" hidden>
+          <div class="page-width round-content">
+            <div>
+              <span class="live-dot"></span>
+              <strong id="round-title"></strong>
+              <span id="round-total"></span>
+            </div>
+            <a href="/vote">Cast your vote →</a>
+          </div>
+        </section>
+        <section id="projects" class="page-width browse-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">EXPLORE STUDENT WORK</span>
+              <h2>Find your next favourite.</h2>
+            </div>
+            <span id="project-count" class="project-count"></span>
+          </div>
+          <div class="filter-bar">
+            <label class="search">
+              <span>⌕</span>
+              <input id="public-search" placeholder="Search projects, teams or tags" />
+            </label>
+            <select id="public-school">
+              <option value="">All schools</option>
+            </select>
+            <select id="public-category">
+              <option value="">All categories</option>
+            </select>
+            <select id="public-year">
+              <option value="">All years</option>
+            </select>
+          </div>
+          <p id="public-message" class="form-message"></p>
+          <div id="public-projects" class="project-grid"></div>
+        </section>
+      </section>
+
+      <section id="student-shell" class="app-screen functional-shell" hidden>
+        <aside class="app-sidebar">
+          <a class="app-brand" href="/">
+            <span class="brand-mark">✦▶</span>
+            <strong>
+              Project
+              <br />
+              Showcase
+            </strong>
+          </a>
+          <nav>
+            <button data-student-panel="home" class="active">
+              ⌂
+              <span>Home</span>
+            </button>
+            <button data-student-panel="project">
+              ▣
+              <span>My project</span>
+            </button>
+            <a href="/vote">
+              ◇
+              <span>Vote</span>
+            </a>
+            <button data-student-panel="notifications">
+              ♢
+              <span>Notifications</span>
+              <b id="notification-count" hidden></b>
+            </button>
+          </nav>
+          <div class="user-chip">
+            <span id="student-initials"></span>
+            <div>
+              <strong id="student-name"></strong>
+              <small>Student</small>
+            </div>
+            <button id="student-signout" title="Sign out">↪</button>
+          </div>
+        </aside>
+        <div class="app-main">
+          <section id="student-home-panel">
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">STUDENT DASHBOARD</span>
+                <h1 id="student-greeting">Welcome.</h1>
+              </div>
+            </header>
+            <div id="no-team" class="empty-state" hidden>
+              <span class="empty-icon">✦</span>
+              <h2>Start your project journey.</h2>
+              <p>Create a new team or join classmates with their private team code.</p>
+              <div class="team-choice">
+                <form id="create-team">
+                  <h3>Create a team</h3>
+                  <label>
+                    Team name
+                    <input name="name" maxlength="80" required />
+                  </label>
+                  <button class="primary" type="submit">Create team</button>
+                  <p class="form-message"></p>
+                </form>
+                <form id="join-team">
+                  <h3>Join a team</h3>
+                  <label>
+                    Private team code
+                    <input name="code" maxlength="20" required />
+                  </label>
+                  <button class="secondary" type="submit">Join team</button>
+                  <p class="form-message"></p>
+                </form>
+              </div>
+            </div>
+            <div id="team-dashboard" hidden>
+              <div class="dashboard-grid">
+                <article id="current-project" class="current-project"></article>
+                <aside class="next-actions">
+                  <h2>Team</h2>
+                  <div id="member-list"></div>
+                  <button id="refresh-code" class="secondary full">Generate new join code</button>
+                  <p id="join-code" class="code-display"></p>
+                </aside>
+              </div>
+            </div>
+          </section>
+          <section id="student-project-panel" hidden>
+            <header class="editor-top">
+              <div>
+                <button class="back" data-student-panel="home">← Dashboard</button>
+                <h1>Project editor</h1>
+                <span id="project-state" class="status-pill">Draft</span>
+              </div>
+              <div class="save-status">
+                <span id="save-status">Not saved</span>
+                <button id="submit-project" class="primary" type="button">Submit for review</button>
+              </div>
+            </header>
+            <form id="project-editor-form" class="editor-form standalone-editor">
+              <span class="eyebrow">YOUR TEAM PROJECT</span>
+              <h2>Tell visitors what you made.</h2>
+              <label>
+                Project title
+                <input name="title" maxlength="120" required />
+              </label>
+              <div class="form-row">
+                <label>
+                  Category
+                  <select name="categoryId" required></select>
+                </label>
+                <label>
+                  Year
+                  <input name="year" type="number" min="2020" max="2100" required />
+                </label>
+              </div>
+              <label>
+                Short description
+                <textarea name="description" rows="4" maxlength="600" required></textarea>
+              </label>
+              <label>
+                Learning story
+                <textarea name="learningStory" rows="6" maxlength="1200" required></textarea>
+              </label>
+              <label>
+                Project link
+                <input name="projectUrl" type="url" placeholder="https://..." required />
+              </label>
+              <label>
+                Cover image (JPG, PNG or WebP, up to 5 MB)
+                <input name="cover" type="file" accept="image/jpeg,image/png,image/webp" />
+              </label>
+              <div id="cover-preview" class="cover-preview"></div>
+              <label>
+                Tags
+                <input name="tags" placeholder="recycling, ocean, game design" />
+              </label>
+              <div id="project-feedback" class="teacher-feedback" hidden></div>
+              <button class="primary" type="submit">Save draft</button>
+              <p id="project-message" class="form-message"></p>
+            </form>
+          </section>
+          <section id="student-notifications-panel" hidden>
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">NOTIFICATIONS</span>
+                <h1>Your updates.</h1>
+              </div>
+              <button id="mark-read" class="secondary">Mark all read</button>
+            </header>
+            <div id="notification-list" class="notification-panel"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="staff-shell" class="app-screen functional-shell" hidden>
+        <aside class="app-sidebar teacher-side">
+          <a class="app-brand" href="/">
+            <span class="brand-mark">✦▶</span>
+            <strong>
+              Project
+              <br />
+              Showcase
+            </strong>
+          </a>
+          <small id="staff-role">TEACHER WORKSPACE</small>
+          <nav>
+            <button data-staff-panel="reviews" class="active">
+              ▤
+              <span>Review queue</span>
+              <b id="review-count"></b>
+            </button>
+            <button data-staff-panel="students">
+              ♙
+              <span>Students</span>
+            </button>
+            <button data-staff-panel="admin" id="admin-nav" hidden>
+              ⌂
+              <span>Admin centre</span>
+            </button>
+          </nav>
+          <div class="user-chip">
+            <span id="staff-initials"></span>
+            <div>
+              <strong id="staff-name"></strong>
+              <small id="staff-school"></small>
+            </div>
+            <button id="staff-signout" title="Sign out">↪</button>
+          </div>
+        </aside>
+        <div class="app-main">
+          <section id="staff-reviews-panel">
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">REVIEW QUEUE</span>
+                <h1>Projects waiting for you.</h1>
+              </div>
+            </header>
+            <div class="review-layout functional-review">
+              <aside id="review-list" class="review-list"></aside>
+              <article id="review-preview" class="review-preview empty-copy">
+                Select a submission to review.
+              </article>
+              <form id="review-form" class="decision-panel" hidden>
+                <span class="eyebrow">TEACHER REVIEW</span>
+                <h2>Review this revision</h2>
+                <label>
+                  Private feedback
+                  <textarea name="feedback" rows="8" maxlength="1000"></textarea>
+                </label>
+                <button name="decision" value="approve" class="primary full">
+                  Approve & publish
+                </button>
+                <button name="decision" value="changes" class="secondary full">
+                  Request changes
+                </button>
+                <p class="form-message"></p>
+              </form>
+            </div>
+          </section>
+          <section id="staff-students-panel" hidden>
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">STUDENT ACCOUNTS</span>
+                <h1>Students and teams.</h1>
+              </div>
+            </header>
+            <div id="staff-student-list" class="record-list"></div>
+          </section>
+          <section id="staff-admin-panel" hidden>
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">ACTION CENTRE</span>
+                <h1>Platform administration.</h1>
+              </div>
+            </header>
+            <div id="admin-stats" class="admin-stats"></div>
+            <div class="admin-forms">
+              <form id="teacher-create" class="editor-form">
+                <h2>Create teacher</h2>
+                <label>
+                  Username
+                  <input name="username" required />
+                </label>
+                <label>
+                  School
+                  <select name="schoolId">
+                    <option value="">Programme administrator</option>
+                  </select>
+                </label>
+                <label>
+                  Temporary password
+                  <input name="password" type="password" minlength="8" required />
+                </label>
+                <button class="primary" type="submit">Create account</button>
+                <p class="form-message"></p>
+              </form>
+              <form id="category-create" class="editor-form">
+                <h2>Add category</h2>
+                <label>
+                  Name
+                  <input name="name" required />
+                </label>
+                <button class="primary" type="submit">Add category</button>
+                <p class="form-message"></p>
+                <div id="category-list"></div>
+              </form>
+              <form id="round-create" class="editor-form wide-form">
+                <h2>Create voting round</h2>
+                <label>
+                  Round name
+                  <input name="name" required />
+                </label>
+                <p>Select published projects:</p>
+                <div id="round-projects" class="check-list"></div>
+                <button class="primary" type="submit">Create draft round</button>
+                <p class="form-message"></p>
+              </form>
+              <form id="featured-form" class="editor-form wide-form">
+                <h2>Homepage featured project</h2>
+                <label>
+                  Published project
+                  <select name="projectId" required></select>
+                </label>
+                <button class="primary" type="submit">Set featured project</button>
+                <p class="form-message"></p>
+              </form>
+            </div>
+            <div class="admin-management">
+              <section class="editor-form">
+                <h2>Teacher accounts</h2>
+                <div id="teacher-list"></div>
+              </section>
+              <section class="editor-form">
+                <h2>Schools</h2>
+                <div id="school-list" class="management-list"></div>
+              </section>
+              <section class="editor-form">
+                <h2>Voting rounds</h2>
+                <div id="round-list"></div>
+              </section>
+              <section class="editor-form">
+                <h2>Audit history</h2>
+                <div id="audit-list"></div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="vote-view" hidden>
+        <div class="vote-head page-width">
+          <a class="back" href="/student">← Dashboard</a>
+          <span class="live-label">
+            <i></i>
+            VOTING OPEN
+          </span>
+          <h1 id="vote-round-name">Voting</h1>
+          <p>Choose one project. Your own team is excluded, and your vote is final.</p>
+        </div>
+        <div id="ballot-grid" class="page-width ballot-grid"></div>
+        <p id="ballot-message" class="page-width form-message"></p>
+        <div class="sticky-vote">
+          <span id="selection-text">Select one project to continue</span>
+          <button id="review-vote" class="primary" disabled>Review my vote</button>
+        </div>
+      </section>
+      <section id="results-view" hidden>
+        <div class="results-hero">
+          <div class="page-width">
+            <span class="live-label">
+              <i></i>
+              LIVE RESULTS
+            </span>
+            <h1 id="results-title">Current results</h1>
+            <p>Every vote celebrates a student team’s creativity.</p>
+            <div class="result-total">
+              <strong id="results-total">0</strong>
+              <span>votes cast</span>
+            </div>
+          </div>
+        </div>
+        <div class="page-width results-body">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">CURRENT LEADERBOARD</span>
+              <h2>Top projects</h2>
+            </div>
+          </div>
+          <div id="leaderboard" class="leaderboard"></div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="signin-dialog">
+      <button class="modal-close" data-close>×</button>
+      <div class="signin-grid">
+        <section>
+          <div class="tab-list">
+            <button class="active" data-auth="student-login">Student sign in</button>
+            <button data-auth="student-register">Register</button>
+            <button data-auth="staff-login">Staff</button>
+          </div>
+          <form id="student-login-form" class="auth-form">
+            <h2>Student sign in</h2>
+            <label>
+              Username
+              <input name="username" required />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" required />
+            </label>
+            <button class="primary full" type="submit">Sign in</button>
+            <p class="form-message"></p>
+          </form>
+          <form id="student-register-form" class="auth-form" hidden>
+            <h2>Create student account</h2>
+            <label>
+              School
+              <select name="schoolId" required></select>
+            </label>
+            <label>
+              Class
+              <input name="className" required />
+            </label>
+            <label>
+              Full name
+              <input name="fullName" required />
+            </label>
+            <label>
+              Username
+              <input name="username" required minlength="3" />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" required minlength="8" />
+            </label>
+            <label>
+              Confirm password
+              <input name="confirmPassword" type="password" required minlength="8" />
+            </label>
+            <label class="check">
+              <input name="fullNameConfirmed" type="checkbox" required />
+              <span>I confirm this is my full name and I am creating one account.</span>
+            </label>
+            <button class="primary full" type="submit">Create account</button>
+            <p class="form-message"></p>
+          </form>
+          <form id="staff-login-form" class="auth-form" hidden>
+            <h2>Teacher or admin sign in</h2>
+            <label>
+              Username
+              <input name="username" required />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" required />
+            </label>
+            <button class="primary full" type="submit">Sign in</button>
+            <p class="form-message"></p>
+          </form>
+        </section>
+      </div>
+    </dialog>
+    <dialog id="project-dialog">
+      <button class="modal-close" data-close>×</button>
+      <div id="project-detail" class="modal-grid"></div>
+    </dialog>
+    <dialog id="vote-dialog">
+      <button class="modal-close" data-close>×</button>
+      <div class="confirm-vote">
+        <span class="eyebrow">REVIEW YOUR VOTE</span>
+        <h2 id="confirm-title"></h2>
+        <p>Your vote is final and cannot be changed after confirmation.</p>
+        <button id="confirm-vote" class="primary full">Confirm final vote</button>
+        <button class="secondary full" data-close>Go back</button>
+        <p class="form-message"></p>
+      </div>
+    </dialog>
+  </body>
+</html>

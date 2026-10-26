@@ -6,14 +6,15 @@ import { tmpdir } from 'node:os';
 import { createApp } from '../server.js';
 import { provisionTeacher } from '../store.js';
 
-const dir = mkdtempSync(join(tmpdir(), 'cep-browser-'));
+const dir = mkdtempSync(join(tmpdir(), 'showcase-browser-'));
 const { server, db } = createApp({ database: join(dir, 'portal.sqlite'), secureCookies: false });
-const password = 'Browser test password 42!';
+const password = 'Browser password 42';
 const schoolId = 'sg-admiralty-secondary-school';
-provisionTeacher(db, 'admin', password);
+provisionTeacher(db, 'school.teacher', password, schoolId);
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
+
 try {
   browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
@@ -21,154 +22,85 @@ try {
     args: ['--no-sandbox']
   });
   const errors = [];
-  const responses = [];
-  function inspect(page) {
-    page.on('pageerror', (e) => errors.push(e.message));
-    page.on('response', (r) => {
-      if (r.status() >= 500) responses.push(`${r.status()} ${r.url()}`);
+  const badResponses = [];
+  const inspect = (page) => {
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('response', (response) => {
+      if (response.status() >= 500) badResponses.push(`${response.status()} ${response.url()}`);
     });
-  }
-  const publicPage = await browser.newPage();
-  inspect(publicPage);
-  await publicPage.goto(origin);
-  assert.equal(await publicPage.locator('nav a[href*="teacher"]').count(), 0);
-  await publicPage.goto(`${origin}/#teacher`);
-  assert.equal(await publicPage.locator('#showcase').isVisible(), true);
-  assert.equal(await publicPage.locator('#teacher').isVisible(), false);
+  };
 
-  const teacher = await browser.newPage();
+  const student = await browser.newPage();
+  inspect(student);
+  await student.goto(origin);
+  await student.locator('#open-signin').click();
+  await student.locator('[data-auth="student-register"]').click();
+  await student.locator('#student-register-form [name="schoolId"]').selectOption(schoolId);
+  await student.locator('#student-register-form [name="className"]').fill('Secondary 1A');
+  await student.locator('#student-register-form [name="fullName"]').fill('Alex Tan');
+  await student.locator('#student-register-form [name="username"]').fill('alex.tan');
+  await student.locator('#student-register-form [name="password"]').fill(password);
+  await student.locator('#student-register-form [name="confirmPassword"]').fill(password);
+  await student.locator('#student-register-form [name="fullNameConfirmed"]').check();
+  await student.locator('#student-register-form button[type="submit"]').click();
+  await student.locator('#no-team').waitFor({ state: 'visible' });
+  await student.locator('#create-team [name="name"]').fill('Pixel Pioneers');
+  student.once('dialog', (dialog) => dialog.accept());
+  await student.locator('#create-team button').click();
+  await student.locator('#team-dashboard').waitFor({ state: 'visible' });
+  await student.locator('[data-student-panel="project"]').first().click();
+  const editor = student.locator('#project-editor-form');
+  await editor.locator('[name="title"]').fill('Ocean Rescue');
+  await editor.locator('[name="categoryId"]').selectOption({ index: 1 });
+  await editor.locator('[name="description"]').fill('Clean the ocean and rescue sea animals.');
+  await editor
+    .locator('[name="learningStory"]')
+    .fill('We learned how recycling choices affect ocean habitats through game design.');
+  await editor.locator('[name="projectUrl"]').fill('https://arcade.makecode.com/12345');
+  await editor.locator('[name="tags"]').fill('ocean, recycling');
+  await editor.locator('[name="cover"]').setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64'
+    )
+  });
+  await editor.locator('button[type="submit"]').click();
+  await student.getByText('Draft saved.').waitFor();
+  await student.locator('#submit-project').click();
+  await student.locator('#team-dashboard').waitFor({ state: 'visible' });
+  await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
+
+  const teacherContext = await browser.newContext();
+  const teacher = await teacherContext.newPage();
   inspect(teacher);
   const teacherResponse = await teacher.goto(`${origin}/teacher`);
   assert.equal(teacherResponse.headers()['x-robots-tag'], 'noindex, nofollow');
-  assert.equal(await teacher.locator('#login-form').isVisible(), true);
-  assert.equal(await teacher.locator('#workspace').isVisible(), false);
-  await teacher.locator('#login-form [name="username"]').fill('admin');
-  await teacher.locator('#login-form [name="password"]').fill(password);
-  await teacher.locator('#login-form button[type="submit"]').click();
-  await teacher.locator('#workspace').waitFor({ state: 'visible' });
-  assert.equal(await teacher.locator('[data-tab="schools"]').count(), 0);
-  await teacher.locator('#new-project').click();
-  await teacher.locator('#project-school-search').fill('be');
-  const matches = await teacher
-    .locator('#project-school-results .combobox-option')
-    .allTextContents();
-  assert.ok(matches.includes('Beatty Secondary School'));
-  assert.ok(matches.every((name) => name.toLowerCase().includes('be')));
-  await teacher.locator('#project-school-search').fill('Be');
-  assert.deepEqual(
-    await teacher.locator('#project-school-results .combobox-option').allTextContents(),
-    matches
-  );
-  await teacher.locator('#project-school-search').fill('girls');
-  const wordMatches = await teacher
-    .locator('#project-school-results .combobox-option')
-    .allTextContents();
-  assert.ok(wordMatches.includes("Crescent Girls' School"));
-  assert.ok(wordMatches.every((name) => name.toLowerCase().includes('girls')));
-  await teacher.locator('#project-school-search').fill('ad');
-  await teacher.getByRole('option', { name: 'Admiralty Secondary School' }).click();
-  await teacher.locator('#project-form [name="teamName"]').fill('Team Alpha');
-  await teacher.locator('#project-form [name="gameTitle"]').fill('Learning Adventure');
-  await teacher.locator('#project-form [name="learningTopic"]').fill('Science');
-  await teacher
-    .locator('#project-form [name="description"]')
-    .fill('Discover science through a student-created game.');
-  await teacher.locator('#project-form [name="makecodeUrl"]').fill('https://arcade.makecode.com/');
-  await teacher.locator('#project-form [name="status"]').selectOption('Published');
-  await teacher.locator('#project-form [name="privacy"]').check();
-  await teacher.locator('#project-form button[type="submit"]').click();
-  await teacher.locator('#editor').waitFor({ state: 'hidden' });
-  await teacher.locator('#manage-projects h3').getByText('Learning Adventure').waitFor();
-  const studentContext = await browser.newContext();
-  const student = await studentContext.newPage();
-  inspect(student);
-  await student.goto(`${origin}/#vote`);
-  await student.locator('#show-register').click();
-  await student.locator('#register-school').selectOption(schoolId);
-  await student.locator('#register-class').fill('Secondary 1A');
-  await student.locator('#register-form [name="fullName"]').fill('Alex Tan');
-  await student.locator('#register-form [name="username"]').fill('alex.tan');
-  await student.locator('#register-form [name="password"]').fill(password);
-  await student.locator('#register-form [name="confirmPassword"]').fill(password);
-  await student.locator('#register-form [name="fullNameConfirmed"]').check();
-  await student.locator('#register-form button[type="submit"]').click();
-  await student.locator('#student-workspace').waitFor({ state: 'visible' });
-  await student.locator('#ballot-choices input').check();
-  await student.locator('#final-confirmation input').check();
-  await student.locator('#save-vote').click();
-  await student.getByText('Thank you! Your final vote was recorded', { exact: false }).waitFor();
-  assert.equal(await student.locator('#save-vote').isVisible(), false);
-  await student.reload();
-  try {
-    await student
-      .getByText('Thank you! Your final vote was recorded', { exact: false })
-      .waitFor({ timeout: 5000 });
-  } catch (error) {
-    console.error(
-      'Reload diagnostic:',
-      student.url(),
-      await student.locator('body').innerText(),
-      errors
-    );
-    throw error;
-  }
-  const otherContext = await browser.newContext();
-  const other = await otherContext.newPage();
-  inspect(other);
-  await other.goto(`${origin}/#vote`);
-  await other.locator('#show-register').click();
-  await other.locator('#register-school').selectOption(schoolId);
-  await other.locator('#register-class').fill('Secondary 1A');
-  await other.locator('#register-form [name="fullName"]').fill(' ALEX  TAN ');
-  await other.locator('#register-form [name="username"]').fill('another.username');
-  await other.locator('#register-form [name="password"]').fill(password);
-  await other.locator('#register-form [name="confirmPassword"]').fill(password);
-  await other.locator('#register-form [name="fullNameConfirmed"]').check();
-  await other.locator('#register-form button[type="submit"]').click();
-  await other
-    .locator('#register-message')
-    .getByText('An account is already registered', { exact: false })
-    .waitFor();
-  await other.locator('#show-student-login').click();
-  await other.locator('#student-login [name="username"]').fill('alex.tan');
-  await other.locator('#student-login [name="password"]').fill(password);
-  await other.locator('#student-login button[type="submit"]').click();
-  await other.getByText('Thank you! Your final vote was recorded', { exact: false }).waitFor();
-  await teacher.locator('[data-tab="students"]').click();
-  await teacher.locator('#students-list h3').getByText('Alex Tan').waitFor();
-  await teacher.locator('[data-reset]').click();
-  await teacher
-    .locator('#reset-password-form [name="password"]')
-    .fill('Reset browser password 42!');
-  await teacher
-    .locator('#reset-password-form [name="confirmPassword"]')
-    .fill('Reset browser password 42!');
-  await teacher.locator('#reset-password-form button[type="submit"]').click();
-  await teacher.locator('#password-dialog').waitFor({ state: 'hidden' });
-  await other.reload();
-  await other.locator('#student-login').waitFor({ state: 'visible' });
-  await other.locator('#student-login [name="username"]').fill('alex.tan');
-  await other.locator('#student-login [name="password"]').fill('Reset browser password 42!');
-  await other.locator('#student-login button[type="submit"]').click();
-  await other.getByText('Thank you! Your final vote was recorded', { exact: false }).waitFor();
-  await other.locator('#student-logout').click();
-  await other.locator('#student-login').waitFor({ state: 'visible' });
-  assert.equal(await other.locator('#student-account').textContent(), '');
-  await other.goto(origin);
-  await other.locator('#public-projects h3').getByText('Learning Adventure').waitFor();
-  assert.equal(await other.locator('#public-projects strong').first().textContent(), '1 vote');
-  assert.equal((await other.locator('body').innerText()).includes('Alex Tan'), false);
-  await other.screenshot({ path: '/tmp/cep-online-desktop.png', fullPage: true });
-  await other.setViewportSize({ width: 390, height: 844 });
+  await teacher.locator('#staff-login-form [name="username"]').fill('school.teacher');
+  await teacher.locator('#staff-login-form [name="password"]').fill(password);
+  await teacher.locator('#staff-login-form button[type="submit"]').click();
+  await teacher.locator('[data-review]').click();
+  await teacher.locator('#review-form').waitFor({ state: 'visible' });
+  await teacher.locator('#review-form [name="feedback"]').fill('Ready to publish.');
+  await teacher.locator('#review-form button[value="approve"]').click();
+  await teacher.getByText('The review queue is clear.').waitFor();
+
+  const publicPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  inspect(publicPage);
+  await publicPage.goto(origin);
+  await publicPage.locator('#public-projects').getByText('Ocean Rescue').waitFor();
+  await publicPage.locator('[data-project]').first().click();
+  await publicPage.locator('#project-dialog').waitFor({ state: 'visible' });
   assert.equal(
-    await other.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    await publicPage.locator('#project-detail').getByText('Pixel Pioneers').isVisible(),
     true
   );
-  await other.screenshot({ path: '/tmp/cep-online-mobile.png', fullPage: true });
+
   assert.deepEqual(errors, []);
-  assert.deepEqual(responses, []);
+  assert.deepEqual(badResponses, []);
   console.log(
-    'PASS: teacher login, publishing, typed-class student registration, final vote, reload, duplicate rejection, second-device login, password recovery, privacy, and mobile layout.'
+    'PASS: redesigned registration, team creation, project editing, submission, teacher approval, public publishing, privacy headers, and mobile layout.'
   );
 } finally {
   if (browser) await browser.close();

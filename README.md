@@ -1,32 +1,44 @@
-# CEP Student Project Showcase — online platform
+# Project Showcase
 
-The online platform provides a public showcase, school-scoped teacher accounts, and student registration with one final vote per voting round. The original offline HTML portal and its instructions are retained unchanged.
+Project Showcase is a year-round platform where Singapore students form teams, build project pages, receive private teacher feedback, publish approved work, and vote in administrator-created rounds.
 
 ## Run locally
 
-Use Node.js 24 or newer (the server uses Node's built-in SQLite module). No runtime packages or external database service are required.
+Install Node.js 24 or newer, then run:
 
 ```sh
 npm ci
 npm run teacher -- coordinator admin
-npm run teacher -- admiralty.teacher "Admiralty Secondary School"
 npm start
 ```
 
-Teacher creation prompts for a hidden password containing 8–128 characters, at least one letter and at least one number; symbols are optional. Running the command again changes that account's password and access scope and revokes existing sessions. `admin` means programme-wide access; an exact school name or its `sg-` ID limits a teacher to that school. The command supports a securely supplied `TEACHER_PASSWORD` for noninteractive provisioning; do not put passwords in shell history, source files, or command arguments.
+The teacher command creates or resets the first programme administrator. It prompts for a hidden password containing 8–128 characters with at least one letter and one number.
 
-The server defaults to port 3000 and binds to loopback. The public site is at `http://localhost:3000`; it does not display a teacher link. Teachers go directly to `http://localhost:3000/teacher`, which opens the teacher sign-in screen. After signing in, create projects and set a project to **Published** to show it publicly and make it available for voting. A fresh database loads the Singapore secondary-school directory from `school-directory.js` and has an open initial voting round, no accounts, and no sample projects. The Add project form filters schools by any part of the name without regard to capitalisation.
+Open these addresses after the server starts:
 
-## Student registration and voting
+| Address                         | Purpose                                      |
+| ------------------------------- | -------------------------------------------- |
+| `http://localhost:3000`         | Public year-round project showcase           |
+| `http://localhost:3000/student` | Student dashboard, teams, and project editor |
+| `http://localhost:3000/vote`    | Current student ballot                       |
+| `http://localhost:3000/results` | Live voting results                          |
+| `http://localhost:3000/teacher` | School teacher review workspace              |
+| `http://localhost:3000/admin`   | Programme administrator workspace            |
 
-- Students choose a school, type any non-empty class name, enter their full name as recorded by the school, choose a username/password, and confirm their name. Classes do not require prior teacher configuration.
-- The server normalises Unicode compatibility characters, capitalisation, and repeated whitespace for a unique **school + class + full name** database key. Display names retain spelling and capitalisation. Legitimate single-word names and non-Latin names are supported.
-- A username is unique across student accounts. Passwords are salted and hashed with scrypt. Only hashed session tokens are stored; browser cookies are HttpOnly and SameSite=Strict.
-- The database enforces one vote per student account per voting round. Votes cannot be replaced, even from another device or in concurrent requests. Student passwords can be reset by a teacher with access to that school, without removing the vote.
-- Programme administrators can close a round and then open a new one. Students get one new vote in a new round. Prior votes stay stored; public totals show the latest round, and only published projects.
-- Names, usernames and classes are visible only to authorised teachers and the signed-in student. Public endpoints expose published project information and aggregate vote counts, never student records or teacher feedback.
-- Open registration checks matching details; it cannot verify that a claimed name is real or stop a person registering under different details. Two students with the same full name in the same class are blocked by the duplicate rule and must contact the programme administrator for review. There is no automatic bypass.
-- There is no verified student-to-team mapping in this registration model, so students can vote for any published project. Own-team exclusion would require a trusted team assignment.
+## Main workflow
+
+1. The programme administrator signs in at `/admin`, creates school teacher accounts, and maintains schools and categories.
+2. Students register immediately using a school, freely typed class, full name, username, and password.
+3. A student creates a same-school team and shares its private join code. Teams support up to five students, and each student can belong to one active team.
+4. The team edits one active project. The browser crops cover images to 16:9 and accepts JPG, PNG, or WebP uploads up to 5 MB.
+5. Submitting locks the revision. A school teacher reviews the public preview, leaves private feedback, and either requests changes or approves publication.
+6. Published projects appear publicly. Later edits create a separate revision while the approved version stays online.
+7. An administrator selects published projects and opens a named voting round for all or selected schools. The ballot locks when opened.
+8. Each active student can cast one final vote per round. Projects belonging to that student’s own team are excluded. Live results use shared ranks for tied totals.
+
+Student names, classes, usernames, team membership, teacher feedback, and account history never appear on public project pages. Teachers can access only their school; programme administrators can manage the complete platform. Passwords use salted scrypt hashes, session tokens are hashed, cookies are HttpOnly and SameSite=Strict, and important changes create audit events.
+
+The original interface remains temporarily available at `/legacy` for rollback comparison. The approved static design prototype remains at `/prototype`; neither is linked from the production navigation.
 
 ## Tests
 
@@ -35,34 +47,24 @@ npm test
 npm run test:browser
 ```
 
-The API tests use isolated temporary databases and cover identity duplicates, concurrent registrations and votes, permissions, privacy, server restart persistence, password recovery, project conflicts, round transitions, import behaviour and production cookies. The browser smoke test uses a fresh temporary database and Chromium to exercise the teacher and student workflows, including free-text classes. Set `CHROMIUM_PATH` if Chromium is elsewhere. Chromium is available in the prepared cloud environment; on other machines install a trusted Chromium build separately. Browser test screenshots are written to the OS temporary directory. Test accounts and votes are never written to your live database.
+The API suite covers the original migration-compatible workflows and the redesigned team, review, selected-ballot, own-team exclusion, and final-vote workflow. The Chromium test covers student registration, team creation, image processing, project submission, teacher approval, public publication, privacy headers, and mobile rendering. Tests use temporary databases and do not change live data.
 
-## Hosting
+## Data and hosting
 
-This is a persistent Node application, not a static site. Deploy one application instance on a host with Node 24+, an HTTPS reverse proxy and a persistent disk. A static-only hosting service will not run this backend. SQLite supports this initial single-instance school workflow; do not run multiple replicas with separate disks.
-
-Environment configuration:
-
-| Variable        | Purpose                                                                    | Default                                  |
-| --------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
-| `PORT`          | Server port                                                                | `3000`                                   |
-| `HOST`          | Listen interface; use `0.0.0.0` behind the hosting proxy                   | `127.0.0.1`                              |
-| `DATA_DIR`      | Persistent private directory holding `portal.sqlite`                       | `data` relative to the working directory |
-| `NODE_ENV`      | Set to `production` on hosting                                             | unset                                    |
-| `PUBLIC_ORIGIN` | Exact HTTPS origin, e.g. `https://showcase.example.org`, no trailing slash | required in production                   |
-
-Use `npm ci --omit=dev` for production; the server has no runtime dependencies. Run the same teacher provisioning command on the host with the same `DATA_DIR`, then start with `npm start`. Do not put the database or backups under `public/`. Production uses Secure cookies, HTTPS origin checks, security headers and same-origin request protection. Keep the full persistent data directory private. Rate limits use the actual socket address rather than trusting user-supplied proxy headers; on hosting with a reverse proxy, users share those limits, which may need tuning for your actual traffic.
-
-For a consistent full backup while running:
+SQLite data is stored in `data/portal.sqlite` by default. Existing installations are migrated automatically when the server starts. Make a full online backup with:
 
 ```sh
 npm run backup -- /private/backups/portal-backup.sqlite
 ```
 
-The backup command uses SQLite's online backup API and includes students, credentials, sessions and all rounds. Restrict access to backups accordingly. To restore, stop the application, preserve the existing database, replace it with the backup, remove only the old matching `-wal` and `-shm` sidecars, then restart with the same `DATA_DIR`. A restored snapshot also restores sessions present at backup time; revoke sessions if recovering from an access incident.
+Production requires one persistent Node.js 24+ application instance, HTTPS, and private persistent storage. Configure:
 
-The cloud development environment is not public hosting. A live deployment still requires choosing and configuring your hosting account, domain and persistent storage.
+| Variable        | Purpose                                                           | Default     |
+| --------------- | ----------------------------------------------------------------- | ----------- |
+| `PORT`          | Server port                                                       | `3000`      |
+| `HOST`          | Listen interface                                                  | `127.0.0.1` |
+| `DATA_DIR`      | Private persistent directory                                      | `data`      |
+| `NODE_ENV`      | Set to `production` on the host                                   | unset       |
+| `PUBLIC_ORIGIN` | Exact HTTPS origin with no trailing slash; required in production | unset       |
 
-## Redesign prototype
-
-The clickable redesign prototype is available at `http://localhost:3000/prototype`. Use the selector in the top banner to review the public homepage, student dashboard, project editor, teacher review, administrator workspace, ballot, and live results. It contains sample content only and does not read or change application data.
+Use `npm ci --omit=dev` in production. Keep the database, backups, and environment configuration outside the public directory.
