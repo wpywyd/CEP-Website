@@ -30,7 +30,7 @@ Open these addresses after the server starts:
 1. The programme administrator signs in at `/admin`, creates school teacher accounts, and maintains schools and categories.
 2. Students register immediately using a school, freely typed class, full name, username, and password.
 3. A student creates a same-school team and shares its private join code. Teams support up to five students, and each student can belong to one active team.
-4. The team edits one active project. The browser crops cover images to 16:9 and accepts JPG, PNG, or WebP uploads up to 5 MB.
+4. The team edits one active project. Every project field is required for review. The browser crops JPG, PNG, or WebP cover images to 16:9 (up to 5 MB), and accepts an MP4 or WebM demo video up to 50 MB.
 5. Submitting locks the revision. A school teacher reviews the public preview, leaves private feedback, and either requests changes or approves publication.
 6. Published projects appear publicly. Later edits create a separate revision while the approved version stays online.
 7. An administrator selects published projects and opens a named voting round for all or selected schools. The ballot locks when opened.
@@ -51,11 +51,13 @@ The API suite covers the original migration-compatible workflows and the redesig
 
 ## Data and hosting
 
-SQLite data is stored in `data/portal.sqlite` by default. Existing installations are migrated automatically when the server starts. Make a full online backup with:
+SQLite data is stored in `data/portal.sqlite` by default, with project videos in `data/project-videos`. Existing installations are migrated automatically when the server starts. Make a full online backup with:
 
 ```sh
 npm run backup -- /private/backups/portal-backup.sqlite
 ```
+
+When videos exist, the backup command also creates a matching `portal-backup.sqlite.videos` directory. Keep both together. When restoring, place the database at `DATA_DIR/portal.sqlite` and copy the contents of the `.videos` directory into `DATA_DIR/project-videos`.
 
 Production requires one persistent Node.js 24+ application instance, HTTPS, and private persistent storage. Configure:
 

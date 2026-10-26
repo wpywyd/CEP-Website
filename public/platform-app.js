@@ -120,8 +120,11 @@ function renderPublicProjects() {
 async function openProject(projectId) {
   try {
     const project = await api(`/api/v2/showcase/${projectId}`);
+    const video = project.videoUrl
+      ? `<video class="project-video" controls preload="metadata" src="${escapeHtml(project.videoUrl)}"></video>`
+      : '';
     $('#project-detail').innerHTML =
-      `<div class="modal-image ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}></div><div class="modal-copy"><span class="category">${escapeHtml(project.category)}</span><h2>${escapeHtml(project.title)}</h2><p class="meta">${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)} · ${project.year}</p><p>${escapeHtml(project.description)}</p><h3>What we learned</h3><p>${escapeHtml(project.learningStory)}</p><div class="tag-row">${project.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div>${project.projectUrl ? `<a class="primary" href="${escapeHtml(project.projectUrl)}" target="_blank" rel="noopener noreferrer">Open project ↗</a>` : ''}</div>`;
+      `<div class="modal-image ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}></div><div class="modal-copy"><span class="category">${escapeHtml(project.category)}</span><h2>${escapeHtml(project.title)}</h2><p class="meta">${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)} · ${project.year}</p><p>${escapeHtml(project.description)}</p>${video}<h3>What we learned</h3><p>${escapeHtml(project.learningStory)}</p><div class="tag-row">${project.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div>${project.projectUrl ? `<a class="primary" href="${escapeHtml(project.projectUrl)}" target="_blank" rel="noopener noreferrer">Open project ↗</a>` : ''}</div>`;
     $('#project-dialog').showModal();
   } catch (error) {
     message('#public-message', error.message, true);
@@ -306,6 +309,9 @@ function fillProjectEditor(project) {
   state.coverImage = project?.coverImage || '';
   $('#cover-preview').style.backgroundImage = state.coverImage ? `url('${state.coverImage}')` : '';
   $('#cover-preview').classList.toggle('has-image', Boolean(state.coverImage));
+  const videoPreview = $('#video-preview');
+  videoPreview.hidden = !project?.videoUrl;
+  videoPreview.src = project?.videoUrl || '';
   form.elements.categoryId.innerHTML =
     '<option value="">Choose category</option>' +
     state.student.categories
@@ -316,6 +322,8 @@ function fillProjectEditor(project) {
     form.elements[name].value = project?.[name] || '';
   form.elements.categoryId.value = project?.categoryId || '';
   form.elements.tags.value = project ? JSON.parse(project.tagsJson || '[]').join(', ') : '';
+  form.elements.cover.required = !state.coverImage;
+  form.elements.video.required = !project?.videoUrl;
   $('#project-state').textContent = (project?.state || 'draft').replaceAll('_', ' ');
   $('#project-feedback').hidden = !project?.feedback;
   $('#project-feedback').textContent = project?.feedback
@@ -347,6 +355,23 @@ async function imageData(file) {
   context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
   image.close();
   return canvas.toDataURL('image/webp', 0.86);
+}
+async function uploadProjectVideo(file) {
+  if (!file) return null;
+  if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 50_000_000)
+    throw new Error('Choose an MP4 or WebM video up to 50 MB.');
+  const response = await fetch('/api/v2/project/video', {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: {
+      'X-CEP-Request': '1',
+      'Content-Type': file.type
+    },
+    body: file
+  });
+  const data = await response.json();
+  if (!response.ok) throw new ApiError(response.status, data.error || 'Video upload failed.');
+  return data;
 }
 
 async function loadStaff() {
@@ -381,9 +406,12 @@ async function loadStaff() {
 async function openReview(revisionId) {
   const revision = await api(`/api/v2/teacher/reviews/${revisionId}`);
   state.review = revision;
+  const video = revision.video_file
+    ? `<video class="project-video" controls preload="metadata" src="/media/project-video/${revision.id}"></video>`
+    : '';
   $('#review-preview').classList.remove('empty-copy');
   $('#review-preview').innerHTML =
-    `<div class="review-cover ${coverClass(revision.cover_image)}" ${coverStyle(revision.cover_image)}></div><h2>${escapeHtml(revision.title)}</h2><p class="meta">${escapeHtml(revision.teamName)} · ${revision.members.length} students</p><p>${escapeHtml(revision.description)}</p><a class="secondary" href="${escapeHtml(revision.project_url)}" target="_blank" rel="noopener noreferrer">Open project ↗</a><h3>Learning story</h3><p>${escapeHtml(revision.learning_story)}</p>`;
+    `<div class="review-cover ${coverClass(revision.cover_image)}" ${coverStyle(revision.cover_image)}></div><h2>${escapeHtml(revision.title)}</h2><p class="meta">${escapeHtml(revision.teamName)} · ${revision.members.length} students</p><p>${escapeHtml(revision.description)}</p>${video}<a class="secondary" href="${escapeHtml(revision.project_url)}" target="_blank" rel="noopener noreferrer">Open project ↗</a><h3>Learning story</h3><p>${escapeHtml(revision.learning_story)}</p>`;
   $('#review-form').hidden = false;
   $('#review-form').elements.feedback.value = revision.feedback || '';
 }
@@ -711,29 +739,50 @@ $('#project-editor-form [name=cover]').addEventListener('change', async (event) 
     message('#project-message', error.message, true);
   }
 });
+$('#project-editor-form [name=video]').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 50_000_000) {
+    event.target.value = '';
+    message('#project-message', 'Choose an MP4 or WebM video up to 50 MB.', true);
+    return;
+  }
+  const preview = $('#video-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.hidden = false;
+});
+async function saveProjectDraft(form) {
+  const videoFile = form.elements.video.files[0];
+  if (form.elements.cover.files[0]) {
+    state.coverImage = await imageData(form.elements.cover.files[0]);
+  }
+  const values = Object.fromEntries(new FormData(form));
+  delete values.cover;
+  delete values.video;
+  const result = await api('/api/v2/project/draft', 'PUT', {
+    ...values,
+    year: Number(values.year),
+    tags: values.tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    coverImage: state.coverImage
+  });
+  if (videoFile) {
+    const upload = await uploadProjectVideo(videoFile);
+    result.project.videoUrl = upload.videoUrl;
+  }
+  message('#project-message', 'Draft saved.');
+  $('#save-status').textContent = 'Saved just now';
+  state.student.team.project = result.project;
+  fillProjectEditor(result.project);
+  return result.project;
+}
 $('#project-editor-form').addEventListener('submit', (event) => {
   event.preventDefault();
   clearTimeout(autosaveTimer);
   const form = event.currentTarget;
-  submit(form, async () => {
-    if (form.elements.cover.files[0]) {
-      state.coverImage = await imageData(form.elements.cover.files[0]);
-    }
-    const values = Object.fromEntries(new FormData(form));
-    const result = await api('/api/v2/project/draft', 'PUT', {
-      ...values,
-      year: Number(values.year),
-      tags: values.tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      coverImage: state.coverImage
-    });
-    message('#project-message', 'Draft saved.');
-    $('#save-status').textContent = 'Saved just now';
-    state.student.team.project = result.project;
-    fillProjectEditor(result.project);
-  });
+  submit(form, () => saveProjectDraft(form));
 });
 let autosaveTimer;
 for (const eventName of ['input', 'change'])
@@ -748,12 +797,23 @@ for (const eventName of ['input', 'change'])
     );
   });
 $('#submit-project').addEventListener('click', async () => {
+  const form = $('#project-editor-form');
+  if (!form.reportValidity()) {
+    message('#project-message', 'Complete every required field before submitting.', true);
+    return;
+  }
+  $('#submit-project').disabled = true;
   try {
+    clearTimeout(autosaveTimer);
+    await saveProjectDraft(form);
     await api('/api/v2/project/submit', 'POST', {});
     await loadStudent();
     showStudentPanel('home');
   } catch (error) {
     message('#project-message', error.message, true);
+  } finally {
+    if (!state.student.team.project || state.student.team.project.state !== 'submitted')
+      $('#submit-project').disabled = false;
   }
 });
 $('#mark-read').addEventListener('click', async () => {

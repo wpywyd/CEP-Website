@@ -187,6 +187,21 @@ a {
   aspect-ratio: 16/9;
   border: 1px solid var(--line);
 }
+.video-preview,
+.project-video {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--navy);
+}
+.video-preview {
+  margin-top: 10px;
+}
+.modal-copy .project-video,
+.review-preview .project-video {
+  margin: 20px 0;
+}
 .notification-panel:empty::before,
 .record-list:empty::before {
   content: 'Nothing to show yet.';

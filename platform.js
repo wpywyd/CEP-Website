@@ -31,6 +31,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       t.name AS teamName, s.name AS schoolName, c.name AS category,
       r.id AS revisionId, r.version, r.title, r.description, r.learning_story AS learningStory,
       r.project_url AS projectUrl, r.cover_image AS coverImage, r.tags_json AS tagsJson,
+      CASE WHEN r.video_file<>'' THEN '/media/project-video/' || r.id ELSE '' END AS videoUrl,
       r.state, r.feedback, r.submitted_at AS submittedAt, r.reviewed_at AS reviewedAt,
       (SELECT count(*) FROM platform_votes v WHERE v.project_id=p.id AND v.round_id=(SELECT id FROM voting_rounds WHERE status='open' ORDER BY created_at DESC LIMIT 1)) AS votes
     FROM showcase_projects p
@@ -60,6 +61,8 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         p.is_featured AS isFeatured, p.is_archived AS isArchived, p.published_revision_id AS publishedRevisionId,
         r.id AS revisionId, r.version, r.title, r.description, r.learning_story AS learningStory,
         r.project_url AS projectUrl, r.cover_image AS coverImage, r.tags_json AS tagsJson,
+        r.video_file AS videoFile, r.video_mime AS videoMime, r.video_name AS videoName,
+        CASE WHEN r.video_file<>'' THEN '/media/project-video/' || r.id ELSE '' END AS videoUrl,
         r.state, r.feedback, r.submitted_at AS submittedAt, r.reviewed_at AS reviewedAt
        FROM showcase_projects p LEFT JOIN project_revisions r ON r.id=(
          SELECT id FROM project_revisions WHERE project_id=p.id ORDER BY version DESC LIMIT 1
@@ -106,6 +109,8 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       fail(400, 'Upload a JPG, PNG, or WebP cover image.');
     if (coverImage && Buffer.byteLength(coverImage.split(',')[1], 'base64') > 5_000_000)
       fail(413, 'Cover images must be no larger than 5 MB.');
+    if (!Number.isInteger(input.year) || input.year < 2020 || input.year > 2100)
+      fail(400, 'Choose a valid project year.');
     return {
       title: text(input.title, 120, true),
       description: text(input.description || '', 600),
@@ -114,10 +119,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       categoryId,
       tags,
       coverImage,
-      year:
-        Number.isInteger(input.year) && input.year >= 2020 && input.year <= 2100
-          ? input.year
-          : new Date().getFullYear()
+      year: input.year
     };
   }
 
@@ -301,7 +303,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
               fail(409, 'This revision is locked while awaiting review.');
             const revisionId = id();
             db.prepare(
-              "INSERT INTO project_revisions (id, project_id, version, title, description, learning_story, project_url, cover_image, tags_json, state, feedback, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', '', ?)"
+              "INSERT INTO project_revisions (id, project_id, version, title, description, learning_story, project_url, cover_image, tags_json, video_file, video_mime, video_name, state, feedback, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', '', ?)"
             ).run(
               revisionId,
               project.id,
@@ -312,6 +314,9 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
               input.projectUrl,
               input.coverImage || project.coverImage,
               JSON.stringify(input.tags),
+              project.videoFile || '',
+              project.videoMime || '',
+              project.videoName || '',
               now()
             );
           } else {
@@ -351,7 +356,9 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         !project.description ||
         !project.learningStory ||
         !project.projectUrl ||
-        !project.coverImage
+        !project.coverImage ||
+        !project.videoUrl ||
+        !JSON.parse(project.tagsJson || '[]').length
       )
         fail(400, 'Complete every project section before submitting.');
       db.prepare("UPDATE project_revisions SET state='submitted', submitted_at=? WHERE id=?").run(

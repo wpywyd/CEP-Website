@@ -1,5 +1,8 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { readFile, mkdir, rename, unlink, stat } from 'node:fs/promises';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
@@ -149,6 +152,120 @@ export function createApp({
       .replace('{{ACCOUNT_DESTINATION}}', account.destination)
       .replace('{{ACCOUNT_LABEL}}', account.label);
   }
+  const videoDirectory = resolve(dirname(database), 'project-videos');
+  async function uploadProjectVideo(req, res) {
+    const user = student(req);
+    const revision = db
+      .prepare(
+        `SELECT r.id, r.state, r.video_file AS videoFile
+         FROM project_revisions r
+         JOIN showcase_projects p ON p.id=r.project_id
+         JOIN teams t ON t.id=p.team_id
+         JOIN team_members m ON m.team_id=t.id
+         WHERE m.student_id=? AND m.is_active=1 AND t.is_active=1 AND p.is_archived=0
+         ORDER BY r.version DESC LIMIT 1`
+      )
+      .get(user.id);
+    if (!revision || !['draft', 'changes_requested'].includes(revision.state))
+      fail(409, 'Save an editable project draft before uploading a video.');
+    const types = { 'video/mp4': 'mp4', 'video/webm': 'webm' };
+    const mime = req.headers['content-type']?.split(';')[0].trim();
+    const extension = types[mime];
+    if (!extension) fail(415, 'Upload an MP4 or WebM video.');
+    const maximum = 50_000_000;
+    const declaredSize = Number(req.headers['content-length']);
+    if (Number.isFinite(declaredSize) && declaredSize > maximum)
+      fail(413, 'Project videos must be no larger than 50 MB.');
+    await mkdir(videoDirectory, { recursive: true });
+    const videoFile = `${randomBytes(16).toString('hex')}.${extension}`;
+    const temporaryFile = resolve(videoDirectory, `${videoFile}.uploading`);
+    const destination = resolve(videoDirectory, videoFile);
+    let size = 0;
+    const limiter = new Transform({
+      transform(chunk, encoding, callback) {
+        size += chunk.length;
+        callback(
+          size > maximum
+            ? new HttpError(413, 'Project videos must be no larger than 50 MB.')
+            : null,
+          chunk
+        );
+      }
+    });
+    try {
+      await pipeline(req, limiter, createWriteStream(temporaryFile, { flags: 'wx' }));
+      if (!size) fail(400, 'Choose a video to upload.');
+      await rename(temporaryFile, destination);
+      db.prepare(
+        'UPDATE project_revisions SET video_file=?, video_mime=?, video_name=? WHERE id=?'
+      ).run(videoFile, mime, `Project demo.${extension}`, revision.id);
+      if (
+        revision.videoFile &&
+        /^[a-f0-9]{32}\.(?:mp4|webm)$/.test(revision.videoFile) &&
+        !db.prepare('SELECT 1 FROM project_revisions WHERE video_file=?').get(revision.videoFile)
+      )
+        await unlink(resolve(videoDirectory, revision.videoFile)).catch(() => {});
+    } catch (error) {
+      await unlink(temporaryFile).catch(() => {});
+      await unlink(destination).catch(() => {});
+      throw error;
+    }
+    return json(res, 200, {
+      ok: true,
+      videoUrl: `/media/project-video/${revision.id}`
+    });
+  }
+  async function serveProjectVideo(req, res, revisionId) {
+    const revision = db
+      .prepare(
+        `SELECT r.state, r.video_file AS videoFile, r.video_mime AS videoMime,
+          p.school_id AS schoolId, p.team_id AS teamId,
+          p.published_revision_id AS publishedRevisionId, p.is_archived AS isArchived
+         FROM project_revisions r JOIN showcase_projects p ON p.id=r.project_id WHERE r.id=?`
+      )
+      .get(revisionId);
+    if (!revision?.videoFile || !/^[a-f0-9]{32}\.(?:mp4|webm)$/.test(revision.videoFile))
+      fail(404, 'Project video not found.');
+    const staff = teacherSession(req);
+    const signedInStudent = studentSession(req);
+    const studentTeam = signedInStudent
+      ? db
+          .prepare('SELECT 1 FROM team_members WHERE student_id=? AND team_id=? AND is_active=1')
+          .get(signedInStudent.id, revision.teamId)
+      : null;
+    const isPublic =
+      !revision.isArchived &&
+      revision.publishedRevisionId &&
+      revision.publishedRevisionId === revisionId;
+    const canReview =
+      staff &&
+      ['submitted', 'published', 'changes_requested'].includes(revision.state) &&
+      (!staff.schoolId || staff.schoolId === revision.schoolId);
+    if (!isPublic && !canReview && !studentTeam) fail(404, 'Project video not found.');
+    const filePath = resolve(videoDirectory, revision.videoFile);
+    const file = await stat(filePath).catch(() => null);
+    if (!file?.isFile()) fail(404, 'Project video not found.');
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    let start = 0;
+    let end = file.size - 1;
+    let status = 200;
+    if (range) {
+      start = range[1] ? Number(range[1]) : Math.max(0, file.size - Number(range[2]));
+      end = range[2] && range[1] ? Math.min(Number(range[2]), file.size - 1) : end;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start > end || start >= file.size) {
+        res.writeHead(416, { 'Content-Range': `bytes */${file.size}` });
+        return res.end();
+      }
+      status = 206;
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${file.size}`);
+    }
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', revision.videoMime);
+    res.setHeader('Content-Length', end - start + 1);
+    res.writeHead(status);
+    if (req.method === 'HEAD') return res.end();
+    createReadStream(filePath, { start, end }).pipe(res);
+  }
   function studentCookie(res, token, expires = 28800) {
     res.setHeader(
       'Set-Cookie',
@@ -219,6 +336,12 @@ export function createApp({
     if (secureCookies) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
+      const videoRoute = /^\/media\/project-video\/([a-f0-9]{32})$/.exec(path);
+      if (videoRoute) {
+        if (!['GET', 'HEAD'].includes(req.method)) fail(405, 'Method not allowed.');
+        await serveProjectVideo(req, res, videoRoute[1]);
+        return;
+      }
       if (!path.startsWith('/api/')) {
         if (req.method !== 'GET' && req.method !== 'HEAD') fail(405, 'Method not allowed.');
         const files = {
@@ -268,6 +391,8 @@ export function createApp({
         if (req.headers['x-cep-request'] !== '1') fail(403, 'Missing request protection header.');
       }
       const ip = req.socket.remoteAddress; // Deliberately do not trust arbitrary forwarding headers.
+      if (path === '/api/v2/project/video' && req.method === 'PUT')
+        return await uploadProjectVideo(req, res);
       if (path.startsWith('/api/v2/')) return await platform.handle(req, res, path);
       if (path === '/api/health' && req.method === 'GET') {
         db.prepare('SELECT 1').get();

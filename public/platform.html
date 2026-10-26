@@ -222,8 +222,19 @@
               </label>
               <div id="cover-preview" class="cover-preview"></div>
               <label>
+                Project demo video (MP4 or WebM, up to 50 MB)
+                <input name="video" type="file" accept="video/mp4,video/webm" />
+              </label>
+              <video
+                id="video-preview"
+                class="video-preview"
+                controls
+                preload="metadata"
+                hidden
+              ></video>
+              <label>
                 Tags
-                <input name="tags" placeholder="recycling, ocean, game design" />
+                <input name="tags" placeholder="recycling, ocean, game design" required />
               </label>
               <div id="project-feedback" class="teacher-feedback" hidden></div>
               <button class="primary" type="submit">Save draft</button>

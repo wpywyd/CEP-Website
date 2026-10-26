@@ -54,6 +54,19 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     assert.equal(response.status, 200);
     return response.cookie;
   }
+  async function uploadVideo(cookie) {
+    const response = await fetch(origin + '/api/v2/project/video', {
+      method: 'PUT',
+      headers: {
+        Origin: origin,
+        'X-CEP-Request': '1',
+        'Content-Type': 'video/mp4',
+        Cookie: cookie
+      },
+      body: Buffer.from('project-demo-video')
+    });
+    return { status: response.status, data: await response.json() };
+  }
   async function createAndSubmit(cookie, teamName, title) {
     const team = await request('/api/v2/teams', 'POST', { name: teamName }, cookie);
     assert.equal(team.status, 201);
@@ -74,6 +87,8 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
       cookie
     );
     assert.equal(saved.status, 200);
+    assert.equal((await request('/api/v2/project/submit', 'POST', {}, cookie)).status, 400);
+    assert.equal((await uploadVideo(cookie)).status, 200);
     assert.equal((await request('/api/v2/project/submit', 'POST', {}, cookie)).status, 200);
     return saved.data.project.id;
   }

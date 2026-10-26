@@ -79,6 +79,11 @@ try {
       'base64'
     )
   });
+  await editor.locator('[name="video"]').setInputFiles({
+    name: 'demo.mp4',
+    mimeType: 'video/mp4',
+    buffer: Buffer.from('project-demo-video')
+  });
   await editor.locator('button[type="submit"]').click();
   await student.getByText('Draft saved.').waitFor();
   await student.locator('#submit-project').click();
@@ -114,6 +119,14 @@ try {
   await teacher.locator('#staff-login-form button[type="submit"]').click();
   await teacher.locator('[data-review]').click();
   await teacher.locator('#review-form').waitFor({ state: 'visible' });
+  const reviewVideo = teacher.locator('#review-preview video');
+  await reviewVideo.waitFor({ state: 'visible' });
+  assert.equal(
+    (
+      await teacher.context().request.get(origin + (await reviewVideo.getAttribute('src')))
+    ).status(),
+    200
+  );
   await teacher.locator('#review-form [name="feedback"]').fill('Ready to publish.');
   await teacher.locator('#review-form button[value="approve"]').click();
   await teacher.getByText('The review queue is clear.').waitFor();
@@ -165,6 +178,14 @@ try {
   await publicPage.locator('#public-projects').getByText('Ocean Rescue').waitFor();
   await publicPage.locator('[data-project]').first().click();
   await publicPage.locator('#project-dialog').waitFor({ state: 'visible' });
+  const publicVideo = publicPage.locator('#project-detail video');
+  await publicVideo.waitFor({ state: 'visible' });
+  assert.equal(
+    (
+      await publicPage.context().request.get(origin + (await publicVideo.getAttribute('src')))
+    ).status(),
+    200
+  );
   assert.equal(
     await publicPage.locator('#project-detail').getByText('Pixel Pioneers').isVisible(),
     true
