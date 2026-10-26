@@ -126,6 +126,16 @@ a {
 .current-project .current-content {
   grid-column: auto;
 }
+.project-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-top: 24px;
+}
+.project-actions .link-button {
+  padding: 10px 4px;
+}
 .member {
   display: flex;
   align-items: center;
@@ -406,6 +416,10 @@ a {
     padding: 25px 15px;
   }
   .tab-list {
+    flex-direction: column;
+  }
+  .project-actions {
+    align-items: flex-start;
     flex-direction: column;
   }
 }

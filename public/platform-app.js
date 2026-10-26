@@ -241,9 +241,48 @@ async function loadStudent() {
 }
 function renderTeam(team) {
   const project = team.project;
-  $('#current-project').innerHTML = project
-    ? `<div class="project-banner ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}><span class="status-pill">${escapeHtml(project.state.replaceAll('_', ' '))}</span></div><div class="current-content"><span class="eyebrow">YOUR TEAM PROJECT</span><h2>${escapeHtml(project.title || 'Untitled project')}</h2><p>${escapeHtml(team.teamName)} · ${team.members.length} member${team.members.length === 1 ? '' : 's'}</p>${project.feedback ? `<div class="feedback-preview"><span>✎</span><div><strong>Teacher feedback</strong><p>${escapeHtml(project.feedback)}</p></div></div>` : ''}<button class="primary" data-student-panel="project">${project.state === 'submitted' ? 'View submission' : 'Continue editing'} →</button>${team.ownerId === state.student.user.id ? '<button class="link-button" id="archive-project">Archive project and team</button>' : ''}</div>`
-    : `<div class="current-content"><span class="eyebrow">YOUR TEAM</span><h2>${escapeHtml(team.teamName)}</h2><p>Your team is ready. Create the project draft together.</p><button class="primary" data-student-panel="project">Create project →</button></div>`;
+  if (project) {
+    const memberCount = `${team.members.length} member${team.members.length === 1 ? '' : 's'}`;
+    const feedback = project.feedback
+      ? `<div class="feedback-preview">
+          <span>✎</span>
+          <div>
+            <strong>Teacher feedback</strong>
+            <p>${escapeHtml(project.feedback)}</p>
+          </div>
+        </div>`
+      : '';
+    const archiveAction =
+      team.ownerId === state.student.user.id
+        ? '<button class="link-button" id="archive-project">Archive project and team</button>'
+        : '';
+    $('#current-project').innerHTML = `
+      <div class="project-banner ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}>
+        <span class="status-pill">${escapeHtml(project.state.replaceAll('_', ' '))}</span>
+      </div>
+      <div class="current-content">
+        <span class="eyebrow">YOUR TEAM PROJECT</span>
+        <h2>${escapeHtml(project.title || 'Untitled project')}</h2>
+        <p>${escapeHtml(team.teamName)} · ${memberCount}</p>
+        ${feedback}
+        <div class="project-actions">
+          <button class="primary" data-student-panel="project">
+            ${project.state === 'submitted' ? 'View submission' : 'Continue editing'} →
+          </button>
+          ${archiveAction}
+        </div>
+      </div>`;
+  } else {
+    $('#current-project').innerHTML = `
+      <div class="current-content">
+        <span class="eyebrow">YOUR TEAM</span>
+        <h2>${escapeHtml(team.teamName)}</h2>
+        <p>Your team is ready. Create the project draft together.</p>
+        <div class="project-actions">
+          <button class="primary" data-student-panel="project">Create project →</button>
+        </div>
+      </div>`;
+  }
   $('#member-list').innerHTML = team.members
     .map(
       (member) =>

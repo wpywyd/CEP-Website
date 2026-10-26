@@ -72,6 +72,10 @@ try {
   await student.locator('#submit-project').click();
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
+  assert.equal(
+    await student.locator('.project-actions').evaluate((element) => getComputedStyle(element).gap),
+    '16px 24px'
+  );
 
   const [studentHomeResponse] = await Promise.all([
     student.waitForResponse(
