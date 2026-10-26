@@ -807,7 +807,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       audit('teacher', user.id, 'round.create', 'round', roundId);
       return json(res, 201, { id: roundId });
     }
-    const roundAction = /^\/api\/v2\/admin\/rounds\/([a-f0-9]{32})\/(open|close)$/.exec(path);
+    const roundAction = /^\/api\/v2\/admin\/rounds\/([a-z0-9-]{1,64})\/(open|close)$/.exec(path);
     if (roundAction && req.method === 'POST') {
       const user = teacher(req);
       requireAdmin(user);

@@ -144,6 +144,12 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     );
   }
   const admin = await loginTeacher('coordinator');
+  assert.equal(
+    (await request('/api/v2/admin/rounds/round-1/close', 'POST', {}, admin)).status,
+    200
+  );
+  assert.equal((await request('/api/v2/ballot', 'GET', undefined, first)).data.round, null);
+  assert.equal((await request('/api/v2/showcase')).data.round, null);
   const round = await request(
     '/api/v2/admin/rounds',
     'POST',

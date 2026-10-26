@@ -87,8 +87,8 @@ async function loadShowcase() {
   $('#public-year').innerHTML =
     '<option value="">All years</option>' +
     years.map((year) => `<option>${year}</option>`).join('');
+  $('#round-strip').hidden = !round;
   if (round) {
-    $('#round-strip').hidden = false;
     $('#round-title').textContent = `${round.name} is live`;
     $('#round-total').textContent = `${round.totalVotes} students have voted`;
   }
@@ -493,6 +493,7 @@ async function loadBallot() {
   setWorkspace('vote');
   try {
     const data = await api('/api/v2/ballot');
+    $('#vote-view .live-label').hidden = !data.round;
     if (!data.round) {
       $('#vote-round-name').textContent = 'No voting round is open';
       $('#ballot-grid').innerHTML = '';
@@ -672,9 +673,15 @@ document.addEventListener('click', async (event) => {
   }
   const closeVoting = event.target.closest('[data-close-voting]');
   if (closeVoting && confirm('Close this voting round? No more votes can be submitted.')) {
-    await api(`/api/v2/admin/rounds/${closeVoting.dataset.closeVoting}/close`, 'POST', {});
-    await loadShowcase();
-    await loadAdmin();
+    closeVoting.disabled = true;
+    try {
+      await api(`/api/v2/admin/rounds/${closeVoting.dataset.closeVoting}/close`, 'POST', {});
+      await loadShowcase();
+      await loadAdmin();
+    } catch (error) {
+      alert(error.message);
+      closeVoting.disabled = false;
+    }
   }
 });
 $('#open-signin').addEventListener('click', () => {
