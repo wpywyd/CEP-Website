@@ -156,6 +156,7 @@ function showDashboardLink(destination, label) {
   entry.dataset.destination = destination;
   entry.innerHTML = `${label} <span>→</span>`;
   entry.setAttribute('aria-label', `Return to ${label.toLowerCase()}`);
+  entry.hidden = false;
 }
 
 async function restoreSignedInSession() {
@@ -180,6 +181,7 @@ async function restoreSignedInSession() {
     showDashboardLink('/student', 'Dashboard');
     return true;
   }
+  $('#open-signin').hidden = false;
   return false;
 }
 
