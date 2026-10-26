@@ -151,22 +151,36 @@ function openSignin(mode = 'student-login') {
   $('#signin-dialog').showModal();
 }
 
-function showStudentDashboardLink() {
+function showDashboardLink(destination, label) {
   const entry = $('#open-signin');
-  entry.dataset.destination = 'student-dashboard';
-  entry.innerHTML = 'Dashboard <span>→</span>';
-  entry.setAttribute('aria-label', 'Return to student dashboard');
+  entry.dataset.destination = destination;
+  entry.innerHTML = `${label} <span>→</span>`;
+  entry.setAttribute('aria-label', `Return to ${label.toLowerCase()}`);
 }
 
-async function restoreStudentSession() {
-  try {
-    state.student = await api('/api/v2/student/home');
-    showStudentDashboardLink();
-    return true;
-  } catch (error) {
-    if (error.status === 401) return false;
-    throw error;
+async function restoreSignedInSession() {
+  const [staffSession, studentSession] = await Promise.allSettled([
+    api('/api/v2/teacher/dashboard'),
+    api('/api/v2/student/home')
+  ]);
+  for (const session of [staffSession, studentSession]) {
+    if (session.status === 'rejected' && session.reason.status !== 401) throw session.reason;
   }
+  if (staffSession.status === 'fulfilled') {
+    state.staff = staffSession.value;
+    const isAdmin = !state.staff.user.schoolId;
+    showDashboardLink(
+      isAdmin ? '/admin' : '/teacher',
+      isAdmin ? 'Admin dashboard' : 'Teacher dashboard'
+    );
+    return true;
+  }
+  if (studentSession.status === 'fulfilled') {
+    state.student = studentSession.value;
+    showDashboardLink('/student', 'Dashboard');
+    return true;
+  }
+  return false;
 }
 
 function setWorkspace(type) {
@@ -571,8 +585,9 @@ document.addEventListener('click', async (event) => {
   }
 });
 $('#open-signin').addEventListener('click', () => {
-  if ($('#open-signin').dataset.destination === 'student-dashboard') {
-    location.href = '/student';
+  const destination = $('#open-signin').dataset.destination;
+  if (destination) {
+    location.href = destination;
     return;
   }
   openSignin();
@@ -607,8 +622,10 @@ $('#staff-login-form').addEventListener('submit', (event) => {
   submit(event.currentTarget, async () => {
     await api('/api/login', 'POST', Object.fromEntries(new FormData(event.currentTarget)));
     $('#signin-dialog').close();
-    history.pushState({}, '', '/teacher');
     await loadStaff();
+    const isAdmin = !state.staff.user.schoolId;
+    history.pushState({}, '', isAdmin ? '/admin' : '/teacher');
+    if (isAdmin) showStaffPanel('admin');
   });
 });
 $('#student-signout').addEventListener('click', async () => {
@@ -790,7 +807,7 @@ for (const id of ['public-search', 'public-school', 'public-category', 'public-y
 const path = location.pathname.replace(/\/$/, '') || '/';
 await populateRegistration();
 await loadShowcase();
-if (!['/student', '/teacher', '/admin'].includes(path)) await restoreStudentSession();
+if (!['/student', '/teacher', '/admin'].includes(path)) await restoreSignedInSession();
 if (path === '/student') await loadStudent();
 else if (path === '/teacher' || path === '/admin') {
   if ((await loadStaff()) && path === '/admin' && !state.staff.user.schoolId)

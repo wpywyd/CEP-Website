@@ -11,6 +11,7 @@ const { server, db } = createApp({ database: join(dir, 'portal.sqlite'), secureC
 const password = 'Browser password 42';
 const schoolId = 'sg-admiralty-secondary-school';
 provisionTeacher(db, 'school.teacher', password, schoolId);
+provisionTeacher(db, 'programme.admin', password, null);
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
@@ -74,6 +75,7 @@ try {
 
   await student.locator('#student-shell .app-brand').click();
   await student.waitForURL(origin + '/');
+  await student.locator('#open-signin', { hasText: 'Dashboard' }).waitFor();
   assert.equal(await student.locator('#open-signin').innerText(), 'Dashboard →');
   await student.locator('#open-signin').click();
   await student.waitForURL(origin + '/student');
@@ -92,6 +94,30 @@ try {
   await teacher.locator('#review-form [name="feedback"]').fill('Ready to publish.');
   await teacher.locator('#review-form button[value="approve"]').click();
   await teacher.getByText('The review queue is clear.').waitFor();
+
+  await teacher.locator('#staff-shell .app-brand').click();
+  await teacher.waitForURL(origin + '/');
+  await teacher.locator('#open-signin', { hasText: 'Teacher dashboard' }).waitFor();
+  assert.equal(await teacher.locator('#open-signin').innerText(), 'Teacher dashboard →');
+  await teacher.locator('#open-signin').click();
+  await teacher.waitForURL(origin + '/teacher');
+  await teacher.locator('#staff-shell').waitFor({ state: 'visible' });
+
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  inspect(admin);
+  await admin.goto(`${origin}/admin`);
+  await admin.locator('#staff-login-form [name="username"]').fill('programme.admin');
+  await admin.locator('#staff-login-form [name="password"]').fill(password);
+  await admin.locator('#staff-login-form button[type="submit"]').click();
+  await admin.locator('#admin-stats').waitFor({ state: 'visible' });
+  await admin.locator('#staff-shell .app-brand').click();
+  await admin.waitForURL(origin + '/');
+  await admin.locator('#open-signin', { hasText: 'Admin dashboard' }).waitFor();
+  assert.equal(await admin.locator('#open-signin').innerText(), 'Admin dashboard →');
+  await admin.locator('#open-signin').click();
+  await admin.waitForURL(origin + '/admin');
+  await admin.locator('#admin-stats').waitFor({ state: 'visible' });
 
   const publicPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   inspect(publicPage);
