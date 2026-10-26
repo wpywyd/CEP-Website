@@ -58,6 +58,28 @@ a {
 .functional-shell.active {
   display: grid !important;
 }
+.functional-shell .app-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100dvh;
+  min-height: 0;
+}
+.functional-shell .app-sidebar nav {
+  overflow-y: auto;
+  min-height: 0;
+}
+.functional-shell .user-chip {
+  flex-shrink: 0;
+}
+.functional-shell .user-chip > div {
+  min-width: 0;
+}
+.functional-shell .user-chip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .app-sidebar a {
   color: inherit;
 }
@@ -423,6 +445,21 @@ a {
   display: none;
 }
 @media (max-width: 900px) {
+  .functional-shell.active {
+    padding-bottom: 140px;
+  }
+  .functional-shell .app-sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    height: auto;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .functional-shell .user-chip {
+    display: flex;
+    margin-top: 7px;
+    padding-top: 10px;
+  }
   .team-choice,
   .admin-forms,
   .admin-management,
