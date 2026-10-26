@@ -96,14 +96,17 @@ export function createApp({
     const row = db.prepare('SELECT count FROM rate_limits WHERE key=?').get(key);
     if (row.count > maximum) fail(429, 'Too many attempts. Please try again later.');
   }
-  function teacher(req) {
+  function teacherSession(req) {
     const token = /(?:^|;\s*)cep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
-    if (!token) fail(401, 'Please sign in as a teacher.');
-    const user = db
+    if (!token) return null;
+    return db
       .prepare(
         `SELECT t.id, t.username, t.school_id AS schoolId FROM sessions s JOIN teachers t ON t.id=s.teacher_id WHERE s.token_hash=? AND s.expires>? AND t.is_disabled=0`
       )
       .get(hash(token), Date.now());
+  }
+  function teacher(req) {
+    const user = teacherSession(req);
     if (!user) fail(401, 'Your session expired. Please sign in again.');
     return user;
   }
@@ -116,16 +119,35 @@ export function createApp({
     if (!p) fail(404, 'Project not found.');
     return p;
   }
-  function student(req) {
+  function studentSession(req) {
     const token = /(?:^|;\s*)cep_student=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
-    if (!token) fail(401, 'Please sign in as a student.');
-    const user = db
+    if (!token) return null;
+    return db
       .prepare(
         `SELECT u.id, u.username, u.school_id AS schoolId, u.class_id AS classId, u.full_name AS fullName FROM student_sessions s JOIN students u ON u.id=s.student_id WHERE s.token_hash=? AND s.expires>? AND u.is_disabled=0`
       )
       .get(hash(token), Date.now());
+  }
+  function student(req) {
+    const user = studentSession(req);
     if (!user) fail(401, 'Your session expired. Please sign in again.');
     return user;
+  }
+  function renderPlatformPage(content, req) {
+    const staff = teacherSession(req);
+    const signedInStudent = studentSession(req);
+    const account = staff
+      ? {
+          destination: staff.schoolId ? '/teacher' : '/admin',
+          label: staff.schoolId ? 'Teacher dashboard' : 'Admin dashboard'
+        }
+      : signedInStudent
+        ? { destination: '/student', label: 'Dashboard' }
+        : { destination: '', label: 'Sign in' };
+    return content
+      .toString()
+      .replace('{{ACCOUNT_DESTINATION}}', account.destination)
+      .replace('{{ACCOUNT_LABEL}}', account.label);
   }
   function studentCookie(res, token, expires = 28800) {
     res.setHeader(
@@ -225,7 +247,8 @@ export function createApp({
         };
         const file = files[path];
         if (!file) fail(404, 'Page not found.');
-        const content = await readFile(resolve(root, 'public', file[0]));
+        let content = await readFile(resolve(root, 'public', file[0]));
+        if (file[0] === 'platform.html') content = renderPlatformPage(content, req);
         if (
           path === '/teacher' ||
           path === '/teacher/' ||

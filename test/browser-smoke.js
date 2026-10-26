@@ -73,7 +73,14 @@ try {
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
 
-  await student.locator('#student-shell .app-brand').click();
+  const [studentHomeResponse] = await Promise.all([
+    student.waitForResponse(
+      (response) =>
+        response.url() === `${origin}/` && response.request().resourceType() === 'document'
+    ),
+    student.locator('#student-shell .app-brand').click()
+  ]);
+  assert.match(await studentHomeResponse.text(), /data-destination="\/student"[\s\S]*Dashboard/);
   await student.waitForURL(origin + '/');
   await student.locator('#open-signin', { hasText: 'Dashboard' }).waitFor();
   assert.equal(await student.locator('#open-signin').innerText(), 'Dashboard →');
@@ -95,7 +102,17 @@ try {
   await teacher.locator('#review-form button[value="approve"]').click();
   await teacher.getByText('The review queue is clear.').waitFor();
 
-  await teacher.locator('#staff-shell .app-brand').click();
+  const [teacherHomeResponse] = await Promise.all([
+    teacher.waitForResponse(
+      (response) =>
+        response.url() === `${origin}/` && response.request().resourceType() === 'document'
+    ),
+    teacher.locator('#staff-shell .app-brand').click()
+  ]);
+  assert.match(
+    await teacherHomeResponse.text(),
+    /data-destination="\/teacher"[\s\S]*Teacher dashboard/
+  );
   await teacher.waitForURL(origin + '/');
   await teacher.locator('#open-signin', { hasText: 'Teacher dashboard' }).waitFor();
   assert.equal(await teacher.locator('#open-signin').innerText(), 'Teacher dashboard →');
@@ -111,7 +128,14 @@ try {
   await admin.locator('#staff-login-form [name="password"]').fill(password);
   await admin.locator('#staff-login-form button[type="submit"]').click();
   await admin.locator('#admin-stats').waitFor({ state: 'visible' });
-  await admin.locator('#staff-shell .app-brand').click();
+  const [adminHomeResponse] = await Promise.all([
+    admin.waitForResponse(
+      (response) =>
+        response.url() === `${origin}/` && response.request().resourceType() === 'document'
+    ),
+    admin.locator('#staff-shell .app-brand').click()
+  ]);
+  assert.match(await adminHomeResponse.text(), /data-destination="\/admin"[\s\S]*Admin dashboard/);
   await admin.waitForURL(origin + '/');
   await admin.locator('#open-signin', { hasText: 'Admin dashboard' }).waitFor();
   assert.equal(await admin.locator('#open-signin').innerText(), 'Admin dashboard →');
