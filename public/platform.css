@@ -5,6 +5,20 @@ a {
   color: inherit;
   text-decoration: none;
 }
+.cover:has(> .project-cover-image) {
+  position: relative;
+  overflow: hidden;
+}
+.project-cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.review-cover.no-cover {
+  display: none;
+}
 .site-header nav a {
   padding: 12px 18px;
   font-weight: 700;

@@ -136,6 +136,10 @@ try {
   await teacher.locator('#staff-login-form button[type="submit"]').click();
   await teacher.locator('[data-review]').click();
   await teacher.locator('#review-form').waitFor({ state: 'visible' });
+  await teacher.waitForFunction(() => {
+    const image = document.querySelector('#review-preview .project-cover-image');
+    return image?.complete && image.naturalWidth > 0;
+  });
   const reviewVideo = teacher.locator('#review-preview video');
   await reviewVideo.waitFor({ state: 'visible' });
   assert.equal(

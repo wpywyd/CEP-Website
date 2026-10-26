@@ -60,12 +60,13 @@ const initials = (name) =>
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-const coverStyle = (cover) =>
-  cover ? `style="background-image:url('${cover.replace(/'/g, '%27')}')"` : '';
 const coverClass = (cover, extra = '') => `${extra} ${cover ? 'cover' : 'no-cover'}`;
+function coverMarkup(cover, className) {
+  return `<div class="${className} ${coverClass(cover)}">${cover ? `<img class="project-cover-image" src="${escapeHtml(cover)}" alt="Project cover" />` : ''}</div>`;
+}
 
 function projectCard(project, ballot = false) {
-  const content = `<div class="project-image ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}></div><div class="card-body"><span class="category">${escapeHtml(project.category || 'Project')}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)}</p><small>${escapeHtml(project.schoolName)}</small>${ballot ? '<span class="select-label">Select this project</span>' : ''}</div>`;
+  const content = `${coverMarkup(project.coverImage, 'project-image')}<div class="card-body"><span class="category">${escapeHtml(project.category || 'Project')}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)}</p><small>${escapeHtml(project.schoolName)}</small>${ballot ? '<span class="select-label">Select this project</span>' : ''}</div>`;
   return ballot
     ? `<label class="ballot-card"><input type="radio" name="projectId" value="${project.id}" />${content}</label>`
     : `<button class="project-card" data-project="${project.id}">${content}</button>`;
@@ -93,7 +94,7 @@ async function loadShowcase() {
   }
   const featured = projects.find((project) => project.isFeatured) || projects[0];
   $('#featured-project').innerHTML = featured
-    ? `<div class="game-scene ${coverClass(featured.coverImage)}" ${coverStyle(featured.coverImage)}></div><div class="featured-info"><span class="category">${escapeHtml(featured.category)}</span><h2>${escapeHtml(featured.title)}</h2><p>${escapeHtml(featured.teamName)} · ${escapeHtml(featured.schoolName)}</p><span class="play-link">View project ↗</span></div>`
+    ? `${coverMarkup(featured.coverImage, 'game-scene')}<div class="featured-info"><span class="category">${escapeHtml(featured.category)}</span><h2>${escapeHtml(featured.title)}</h2><p>${escapeHtml(featured.teamName)} · ${escapeHtml(featured.schoolName)}</p><span class="play-link">View project ↗</span></div>`
     : '<div class="featured-info"><span class="category">COMING SOON</span><h2>Student work will appear here.</h2><p>Approved team projects become part of the year-round showcase.</p></div>';
   if (featured) $('#featured-project').dataset.project = featured.id;
   renderPublicProjects();
@@ -124,7 +125,7 @@ async function openProject(projectId) {
       ? `<video class="project-video" controls preload="metadata" src="${escapeHtml(project.videoUrl)}"></video>`
       : '';
     $('#project-detail').innerHTML =
-      `<div class="modal-image ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}></div><div class="modal-copy"><span class="category">${escapeHtml(project.category)}</span><h2>${escapeHtml(project.title)}</h2><p class="meta">${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)} · ${project.year}</p><p>${escapeHtml(project.description)}</p>${video}<h3>What we learned</h3><p>${escapeHtml(project.learningStory)}</p><div class="tag-row">${project.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div>${project.projectUrl ? `<a class="primary" href="${escapeHtml(project.projectUrl)}" target="_blank" rel="noopener noreferrer">Open project ↗</a>` : ''}</div>`;
+      `${coverMarkup(project.coverImage, 'modal-image')}<div class="modal-copy"><span class="category">${escapeHtml(project.category)}</span><h2>${escapeHtml(project.title)}</h2><p class="meta">${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)} · ${project.year}</p><p>${escapeHtml(project.description)}</p>${video}<h3>What we learned</h3><p>${escapeHtml(project.learningStory)}</p><div class="tag-row">${project.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div>${project.projectUrl ? `<a class="primary" href="${escapeHtml(project.projectUrl)}" target="_blank" rel="noopener noreferrer">Open project ↗</a>` : ''}</div>`;
     $('#project-dialog').showModal();
   } catch (error) {
     message('#public-message', error.message, true);
@@ -416,7 +417,7 @@ async function openReview(revisionId) {
     : '';
   $('#review-preview').classList.remove('empty-copy');
   $('#review-preview').innerHTML =
-    `<div class="review-cover ${coverClass(revision.cover_image)}" ${coverStyle(revision.cover_image)}></div><h2>${escapeHtml(revision.title)}</h2><p class="meta">${escapeHtml(revision.teamName)} · ${revision.members.length} students</p><p>${escapeHtml(revision.description)}</p>${video}<a class="secondary" href="${escapeHtml(revision.project_url)}" target="_blank" rel="noopener noreferrer">Open project ↗</a><h3>Learning story</h3><p>${escapeHtml(revision.learning_story)}</p>`;
+    `${coverMarkup(revision.cover_image, 'review-cover')}<h2>${escapeHtml(revision.title)}</h2><p class="meta">${escapeHtml(revision.teamName)} · ${revision.members.length} students</p><p>${escapeHtml(revision.description)}</p>${video}<a class="secondary" href="${escapeHtml(revision.project_url)}" target="_blank" rel="noopener noreferrer">Open project ↗</a><h3>Learning story</h3><p>${escapeHtml(revision.learning_story)}</p>`;
   $('#review-form').hidden = false;
   $('#review-form').elements.feedback.value = revision.feedback || '';
 }
@@ -530,7 +531,7 @@ function loadResults() {
       .map((project, index) => {
         if (project.votes !== lastVotes) rank = index + 1;
         lastVotes = project.votes;
-        return `<article class="${rank === 1 ? 'winner' : ''}"><span class="rank">${rank}</span><div class="leader-image ${coverClass(project.coverImage)}" ${coverStyle(project.coverImage)}></div><div><span class="category">${escapeHtml(project.category)}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)}</p></div><strong>${project.votes}<small> votes</small></strong></article>`;
+        return `<article class="${rank === 1 ? 'winner' : ''}"><span class="rank">${rank}</span>${coverMarkup(project.coverImage, 'leader-image')}<div><span class="category">${escapeHtml(project.category)}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)}</p></div><strong>${project.votes}<small> votes</small></strong></article>`;
       })
       .join('') ||
     '<div class="empty-projects">Results will appear when published projects receive votes.</div>';
