@@ -392,6 +392,10 @@ async function loadStaff() {
   }
   setWorkspace('staff');
   showStaffPanel('reviews');
+  state.review = null;
+  $('#review-form').hidden = true;
+  $('#review-preview').classList.add('empty-copy');
+  $('#review-preview').textContent = 'Select a submission to review.';
   const { user, reviews } = state.staff;
   $('#staff-name').textContent = user.fullName || user.username;
   $('#staff-initials').textContent = initials(user.fullName || user.username);
@@ -880,6 +884,13 @@ $('#mark-read').addEventListener('click', async () => {
 });
 $('#review-form').addEventListener('submit', (event) => {
   event.preventDefault();
+  if (
+    event.submitter.value === 'remove' &&
+    !confirm(
+      'Remove this submission from the review queue? It will return to draft so the student can edit and resubmit it.'
+    )
+  )
+    return;
   submit(event.currentTarget, async () => {
     const decision = event.submitter.value;
     await api(`/api/v2/teacher/reviews/${state.review.id}`, 'POST', {

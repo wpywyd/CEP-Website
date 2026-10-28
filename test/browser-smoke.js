@@ -148,6 +148,16 @@ try {
     ).status(),
     200
   );
+  teacher.once('dialog', (dialog) => dialog.accept());
+  await teacher.locator('#review-form button[value="remove"]').click();
+  await teacher.getByText('The review queue is clear.').waitFor();
+  assert.equal(await teacher.locator('#review-form').isVisible(), false);
+  await student.goto(`${origin}/student`);
+  await student.locator('[data-student-panel="project"]').first().click();
+  await student.locator('#submit-project').click();
+  await student.locator('#team-dashboard').waitFor({ state: 'visible' });
+  await teacher.reload();
+  await teacher.locator('[data-review]').click();
   await teacher.locator('#review-form [name="feedback"]').fill('Ready to publish.');
   await teacher.locator('#review-form button[value="approve"]').click();
   await teacher.getByText('The review queue is clear.').waitFor();

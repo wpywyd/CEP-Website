@@ -516,7 +516,20 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       const input = await body(req);
       const decision = text(input.decision, 30, true);
       const feedback = text(input.feedback || '', 1000);
-      if (!['approve', 'changes'].includes(decision)) fail(400, 'Choose a valid review decision.');
+      if (!['approve', 'changes', 'remove'].includes(decision))
+        fail(400, 'Choose a valid review decision.');
+      if (decision === 'remove') {
+        db.prepare(
+          "UPDATE project_revisions SET state='draft', submitted_at=NULL WHERE id=? AND state='submitted'"
+        ).run(revision.id);
+        notifyTeam(
+          revision.teamId,
+          'review.removed',
+          'Your teacher removed your submission from the review queue. It is now a draft that you can edit and resubmit.'
+        );
+        audit('teacher', user.id, 'review.remove', 'revision', revision.id);
+        return json(res, 200, { ok: true });
+      }
       const state = decision === 'approve' ? 'published' : 'changes_requested';
       db.prepare(
         'UPDATE project_revisions SET state=?, feedback=?, reviewed_at=?, reviewed_by=? WHERE id=?'
