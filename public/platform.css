@@ -455,6 +455,13 @@ a {
   margin-top: 12px;
   padding: 9px 14px;
 }
+.results-navigation {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 24px;
+}
 .sticky-vote[hidden] {
   display: none;
 }

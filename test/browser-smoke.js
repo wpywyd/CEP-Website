@@ -244,6 +244,9 @@ try {
     assert.equal(await publicPage.locator('#project-detail video').isVisible(), true);
     await publicPage.locator('#project-dialog [data-close]').click();
     assert.equal(await publicPage.locator('#leaderboard').isVisible(), true);
+    await publicPage.getByRole('link', { name: 'Back to homepage' }).click();
+    await publicPage.waitForURL(`${origin}/`);
+    await publicPage.locator('#public-view').waitFor({ state: 'visible' });
   }
 
   assert.deepEqual(errors, []);
