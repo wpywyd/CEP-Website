@@ -55,6 +55,9 @@ a {
 .form-message.error {
   color: #aa3028;
 }
+#account-settings-form > button[type='submit'] {
+  margin-top: 24px;
+}
 .functional-shell.active {
   display: grid !important;
 }
