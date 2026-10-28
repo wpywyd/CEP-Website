@@ -280,6 +280,10 @@
               ♙
               <span>Students</span>
             </button>
+            <button data-staff-panel="projects">
+              ▣
+              <span>School projects</span>
+            </button>
             <button data-staff-panel="recovery">
               <span aria-hidden="true">🔔</span>
               <span>Password requests</span>
@@ -336,6 +340,17 @@
                 <p class="form-message"></p>
               </form>
             </div>
+          </section>
+          <section id="staff-projects-panel" hidden>
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">SCHOOL PROJECTS</span>
+                <h1>Your school’s projects</h1>
+              </div>
+            </header>
+            <p>View projects, leave private comments, or request changes from the team.</p>
+            <p id="school-projects-message" class="form-message" role="status"></p>
+            <div id="school-project-list" class="record-list"></div>
           </section>
           <section id="staff-recovery-panel" hidden>
             <header class="app-top">
@@ -574,6 +589,25 @@
             <p class="form-message"></p>
           </form>
         </section>
+      </div>
+    </dialog>
+    <dialog id="school-project-dialog">
+      <button class="modal-close" data-close aria-label="Close">×</button>
+      <div class="editor-form">
+        <div id="school-project-detail"></div>
+        <form id="school-project-feedback">
+          <label>
+            Private comment
+            <textarea name="comment" maxlength="1000" rows="4" required></textarea>
+          </label>
+          <div class="project-actions">
+            <button class="secondary" type="submit" value="comment">Send comment</button>
+            <button class="primary" type="submit" value="changes">Request changes</button>
+          </div>
+          <p class="form-message" role="status"></p>
+        </form>
+        <h3>Comment history</h3>
+        <div id="school-project-comments"></div>
       </div>
     </dialog>
     <dialog id="account-settings-dialog">

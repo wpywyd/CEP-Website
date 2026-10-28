@@ -237,10 +237,7 @@ export function createApp({
       !revision.isArchived &&
       revision.publishedRevisionId &&
       revision.publishedRevisionId === revisionId;
-    const canReview =
-      staff &&
-      ['submitted', 'published', 'changes_requested'].includes(revision.state) &&
-      (!staff.schoolId || staff.schoolId === revision.schoolId);
+    const canReview = staff && (!staff.schoolId || staff.schoolId === revision.schoolId);
     if (!isPublic && !canReview && !studentTeam) fail(404, 'Project video not found.');
     const filePath = resolve(videoDirectory, revision.videoFile);
     const file = await stat(filePath).catch(() => null);

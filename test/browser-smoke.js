@@ -121,7 +121,9 @@ try {
   await student.locator('#team-dashboard').waitFor({ state: 'visible' });
   await student.locator('#current-project').getByText('submitted', { exact: true }).waitFor();
   assert.equal(
-    await student.locator('.project-actions').evaluate((element) => getComputedStyle(element).gap),
+    await student
+      .locator('#current-project .project-actions')
+      .evaluate((element) => getComputedStyle(element).gap),
     '16px 24px'
   );
 
@@ -181,6 +183,18 @@ try {
   await teacher.locator('#review-form [name="feedback"]').fill('Ready to publish.');
   await teacher.locator('#review-form button[value="approve"]').click();
   await teacher.getByText('The review queue is clear.').waitFor();
+  await teacher.locator('[data-staff-panel="projects"]').click();
+  await teacher.locator('[data-school-project]').click();
+  await teacher
+    .locator('#school-project-feedback [name="comment"]')
+    .fill('Explain the learning goals in more detail.');
+  await teacher.locator('#school-project-feedback button[value="changes"]').click();
+  await teacher.getByText('Changes requested. The team has been notified.').waitFor();
+  await teacher.locator('#school-project-dialog [data-close]').click();
+  await teacher
+    .locator('#school-project-list')
+    .getByText('changes requested', { exact: false })
+    .waitFor();
 
   const [teacherHomeResponse] = await Promise.all([
     teacher.waitForResponse(

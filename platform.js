@@ -643,6 +643,84 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       return json(res, 201, { ok: true });
     }
 
+    if (path === '/api/v2/teacher/school-projects' && req.method === 'GET') {
+      const user = teacher(req);
+      return json(res, 200, {
+        projects: db
+          .prepare(
+            `SELECT p.id, r.title, r.state, t.name AS teamName, s.name AS schoolName
+         FROM showcase_projects p JOIN teams t ON t.id=p.team_id JOIN schools s ON s.id=p.school_id
+         JOIN project_revisions r ON r.id=(SELECT id FROM project_revisions WHERE project_id=p.id ORDER BY version DESC LIMIT 1)
+         WHERE p.is_archived=0${user.schoolId ? ' AND p.school_id=?' : ''} ORDER BY p.updated_at DESC`
+          )
+          .all(...(user.schoolId ? [user.schoolId] : []))
+      });
+    }
+    const schoolProjectRoute = /^\/api\/v2\/teacher\/school-projects\/([a-f0-9]{32})$/.exec(path);
+    if (schoolProjectRoute && ['GET', 'POST'].includes(req.method)) {
+      const user = teacher(req);
+      const record = db
+        .prepare('SELECT * FROM showcase_projects WHERE id=? AND is_archived=0')
+        .get(schoolProjectRoute[1]);
+      if (!record) fail(404, 'Project not found.');
+      canManage(user, record.school_id);
+      const project = teamProject(record.team_id);
+      if (req.method === 'GET')
+        return json(res, 200, {
+          project,
+          comments: db
+            .prepare(
+              `SELECT c.message, c.requests_changes AS requestsChanges, c.created_at AS createdAt,
+         coalesce(nullif(t.full_name,''),t.username) AS teacherName FROM project_comments c
+         JOIN teachers t ON t.id=c.teacher_id WHERE c.project_id=? ORDER BY c.created_at DESC`
+            )
+            .all(record.id)
+        });
+      const input = await body(req);
+      const comment = text(input.comment, 1000, true);
+      const requestsChanges = input.requestChanges === true;
+      db.exec('BEGIN');
+      try {
+        db.prepare('INSERT INTO project_comments VALUES (?, ?, ?, ?, ?, ?)').run(
+          id(),
+          record.id,
+          user.id,
+          comment,
+          Number(requestsChanges),
+          now()
+        );
+        if (requestsChanges) {
+          if (project.revisionId === record.published_revision_id) {
+            db.prepare(
+              `INSERT INTO project_revisions (id,project_id,version,title,description,learning_story,project_url,cover_image,tags_json,state,feedback,created_at,video_file,video_mime,video_name)
+               SELECT ?,project_id,version+1,title,description,learning_story,project_url,cover_image,tags_json,'changes_requested',?,?,video_file,video_mime,video_name FROM project_revisions WHERE id=?`
+            ).run(id(), comment, now(), project.revisionId);
+          } else
+            db.prepare(
+              "UPDATE project_revisions SET state='changes_requested',feedback=? WHERE id=?"
+            ).run(comment, project.revisionId);
+        }
+        notifyTeam(
+          record.team_id,
+          requestsChanges ? 'review.changes_requested' : 'project.comment',
+          requestsChanges
+            ? `Your teacher requested changes: ${comment}`
+            : `Teacher comment: ${comment}`
+        );
+        audit(
+          'teacher',
+          user.id,
+          requestsChanges ? 'project.request_changes' : 'project.comment',
+          'project',
+          record.id
+        );
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      return json(res, 200, { ok: true });
+    }
     if (path === '/api/v2/teacher/dashboard' && req.method === 'GET') {
       const user = teacher(req);
       const where = user.schoolId ? ' AND p.school_id=?' : '';

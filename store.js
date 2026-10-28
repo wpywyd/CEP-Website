@@ -131,6 +131,11 @@ export function openStore(filename) {
       created_at TEXT NOT NULL, resolved_at TEXT,
       UNIQUE(account_type, account_id)
     );
+    CREATE TABLE IF NOT EXISTS project_comments (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES showcase_projects(id),
+      teacher_id TEXT NOT NULL REFERENCES teachers(id), message TEXT NOT NULL,
+      requests_changes INTEGER NOT NULL, created_at TEXT NOT NULL
+    );
   `);
   const ensureColumn = (table, column, definition) => {
     if (!db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name=?`).get(column))

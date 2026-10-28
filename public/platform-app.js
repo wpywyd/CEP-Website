@@ -216,6 +216,7 @@ function showStaffPanel(name) {
   if (name === 'students') loadStaffStudents();
   if (name === 'admin') loadAdmin();
   if (name === 'recovery') loadPasswordRequests();
+  if (name === 'projects') loadSchoolProjects();
 }
 
 async function loadStudent() {
@@ -1131,4 +1132,69 @@ document.addEventListener('click', async (event) => {
     message('#recovery-message', error.message, true);
     button.disabled = false;
   }
+});
+
+async function loadSchoolProjects() {
+  try {
+    const { projects } = await api('/api/v2/teacher/school-projects');
+    $('#school-project-list').innerHTML =
+      projects
+        .map(
+          (project) => `
+      <article class="student-record"><div><h3>${escapeHtml(project.title)}</h3>
+      <p>${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)} · ${escapeHtml(project.state.replaceAll('_', ' '))}</p></div>
+      <button class="secondary" data-school-project="${project.id}">View project & comments</button></article>`
+        )
+        .join('') || '<p>No projects yet.</p>';
+  } catch (error) {
+    message('#school-projects-message', error.message, true);
+  }
+}
+async function openSchoolProject(id) {
+  const { project, comments } = await api(`/api/v2/teacher/school-projects/${id}`);
+  $('#school-project-detail').innerHTML = `${coverMarkup(project.coverImage, 'review-cover')}
+    <h2>${escapeHtml(project.title)}</h2><p>${escapeHtml(project.state.replaceAll('_', ' '))} · ${project.year}</p>
+    <p>${escapeHtml(project.description)}</p><h3>Learning story</h3><p>${escapeHtml(project.learningStory)}</p>
+    ${project.videoUrl ? `<video class="project-video" controls preload="metadata" src="${escapeHtml(project.videoUrl)}"></video>` : ''}
+    ${project.projectUrl ? `<a class="secondary" href="${escapeHtml(project.projectUrl)}" target="_blank" rel="noopener noreferrer">Open project ↗</a>` : ''}`;
+  $('#school-project-feedback').dataset.projectId = id;
+  $('#school-project-comments').innerHTML =
+    comments
+      .map(
+        (comment) =>
+          `<article><strong>${escapeHtml(comment.teacherName)}${comment.requestsChanges ? ' · Changes requested' : ''}</strong><p>${escapeHtml(comment.message)}</p><small>${new Date(comment.createdAt).toLocaleString()}</small></article>`
+      )
+      .join('') || '<p>No comments yet.</p>';
+  if (!$('#school-project-dialog').open) $('#school-project-dialog').showModal();
+}
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-school-project]');
+  if (!button) return;
+  try {
+    $('#school-project-feedback').reset();
+    message($('#school-project-feedback .form-message'));
+    await openSchoolProject(button.dataset.schoolProject);
+  } catch (error) {
+    message('#school-projects-message', error.message, true);
+  }
+});
+$('#school-project-feedback').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const requestChanges = event.submitter.value === 'changes';
+  submit(form, async () => {
+    await api(`/api/v2/teacher/school-projects/${form.dataset.projectId}`, 'POST', {
+      comment: form.elements.comment.value,
+      requestChanges
+    });
+    form.reset();
+    await openSchoolProject(form.dataset.projectId);
+    await loadSchoolProjects();
+    message(
+      $('.form-message', form),
+      requestChanges
+        ? 'Changes requested. The team has been notified.'
+        : 'Comment sent to the team.'
+    );
+  });
 });

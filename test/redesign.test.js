@@ -282,6 +282,27 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
   const showcase = await request('/api/v2/showcase');
   assert.equal(showcase.data.projects.length, 2);
   assert.equal(showcase.data.round.totalVotes, 1);
+  const projectPath = `/api/v2/teacher/school-projects/${firstProject}`;
+  assert.equal(
+    (await request('/api/v2/teacher/school-projects', 'GET', undefined, teacher)).data.projects
+      .length,
+    2
+  );
+  assert.equal(
+    (
+      await request(
+        projectPath,
+        'POST',
+        { comment: 'Please clarify the instructions.', requestChanges: true },
+        teacher
+      )
+    ).status,
+    200
+  );
+  const afterFeedback = await request(projectPath, 'GET', undefined, teacher);
+  assert.equal(afterFeedback.data.project.state, 'changes_requested');
+  assert.equal(afterFeedback.data.comments.length, 1);
+  assert.equal((await request(`/api/v2/showcase/${firstProject}`)).data.state, 'published');
   assert.equal(
     (
       await request(
@@ -301,4 +322,9 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
   const updatedTeacher = await request('/api/v2/teacher/dashboard', 'GET', undefined, teacher);
   assert.equal(updatedTeacher.data.user.fullName, 'Teacher Tan');
   assert.equal(updatedTeacher.data.user.schoolId, 'sg-ahmad-ibrahim-secondary-school');
+  assert.equal((await request(projectPath, 'GET', undefined, teacher)).status, 403);
+  assert.equal(
+    (await request(projectPath, 'POST', { comment: 'Other school' }, teacher)).status,
+    403
+  );
 });
