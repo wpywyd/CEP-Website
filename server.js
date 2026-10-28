@@ -391,6 +391,8 @@ export function createApp({
         if (req.headers['x-cep-request'] !== '1') fail(403, 'Missing request protection header.');
       }
       const ip = req.socket.remoteAddress; // Deliberately do not trust arbitrary forwarding headers.
+      if (path === '/api/v2/password-help' && req.method === 'POST')
+        limit(`password-help:${ip}`, 10, 15 * 60_000);
       if (path === '/api/v2/project/video' && req.method === 'PUT')
         return await uploadProjectVideo(req, res);
       if (path.startsWith('/api/v2/')) return await platform.handle(req, res, path);

@@ -35,6 +35,14 @@ try {
   inspect(student);
   await student.goto(origin);
   await student.locator('#open-signin').click();
+  await student.getByRole('button', { name: 'Forgot password?', exact: true }).click();
+  await student.locator('#forgot-password-form [name="username"]').fill('alex.tan');
+  await student.getByRole('button', { name: 'Request password reset', exact: true }).click();
+  await student
+    .locator('#forgot-password-form .form-message')
+    .getByText('If this username belongs', { exact: false })
+    .waitFor();
+  await student.getByRole('button', { name: 'Back to sign in', exact: true }).click();
   await student.locator('[data-auth="student-register"]').click();
   await student.locator('#student-register-form [name="schoolId"]').selectOption(schoolId);
   await student.locator('#student-register-form [name="className"]').fill('Secondary 1A');

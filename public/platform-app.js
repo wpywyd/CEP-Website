@@ -215,6 +215,7 @@ function showStaffPanel(name) {
   );
   if (name === 'students') loadStaffStudents();
   if (name === 'admin') loadAdmin();
+  if (name === 'recovery') loadPasswordRequests();
 }
 
 async function loadStudent() {
@@ -1048,4 +1049,60 @@ $('#account-settings-form').addEventListener('submit', (event) => {
     form.elements.confirmPassword.value = '';
     message($('.form-message', form), 'Account details saved.');
   });
+});
+
+$('#forgot-password-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  submit(form, async () => {
+    await api('/api/v2/password-help', 'POST', Object.fromEntries(new FormData(form)));
+    message(
+      $('.form-message', form),
+      'If this username belongs to an active account, a reset request has been sent. Contact your teacher or programme administrator to verify your identity.'
+    );
+  });
+});
+async function loadPasswordRequests() {
+  try {
+    const { requests } = await api('/api/v2/teacher/password-requests');
+    $('#password-request-list').innerHTML = requests.length
+      ? requests
+          .map(
+            (request) => `
+      <article class="student-record"><div><h3>${escapeHtml(request.fullName || request.username)}</h3>
+      <p>${escapeHtml(request.username)} · ${escapeHtml(request.accountType)} · ${escapeHtml(request.schoolName || 'Programme administrator')}</p></div>
+      <button class="secondary" data-recovery-reset="${request.id}">Reset password</button></article>`
+          )
+          .join('')
+      : '<p>No pending password requests.</p>';
+  } catch (error) {
+    message('#recovery-message', error.message, true);
+  }
+}
+$('#refresh-recovery').addEventListener('click', loadPasswordRequests);
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-recovery-reset]');
+  if (
+    !button ||
+    !confirm('Have you verified this person’s identity? Continue to set their temporary password.')
+  )
+    return;
+  const password = prompt(
+    'Temporary password: at least 8 characters, including a letter and a number.'
+  );
+  if (!password) return;
+  button.disabled = true;
+  try {
+    await api(`/api/v2/teacher/password-requests/${button.dataset.recoveryReset}`, 'POST', {
+      password
+    });
+    message(
+      '#recovery-message',
+      'Password reset. Share the temporary password directly with the account owner.'
+    );
+    await loadPasswordRequests();
+  } catch (error) {
+    message('#recovery-message', error.message, true);
+    button.disabled = false;
+  }
 });

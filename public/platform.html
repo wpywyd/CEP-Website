@@ -280,6 +280,10 @@
               ♙
               <span>Students</span>
             </button>
+            <button data-staff-panel="recovery">
+              ⚿
+              <span>Password requests</span>
+            </button>
             <button data-account-settings="teacher">
               ⚙
               <span>Account settings</span>
@@ -331,6 +335,21 @@
                 <p class="form-message"></p>
               </form>
             </div>
+          </section>
+          <section id="staff-recovery-panel" hidden>
+            <header class="app-top">
+              <div>
+                <span class="eyebrow">ACCOUNT RECOVERY</span>
+                <h1>Password requests</h1>
+              </div>
+            </header>
+            <p>
+              Verify the person's identity through your school before resetting their password.
+              Share the temporary password directly with them.
+            </p>
+            <button id="refresh-recovery" class="secondary">Refresh requests</button>
+            <p id="recovery-message" class="form-message" role="status"></p>
+            <div id="password-request-list" class="record-list"></div>
           </section>
           <section id="staff-students-panel" hidden>
             <header class="app-top">
@@ -498,7 +517,27 @@
               <input name="password" type="password" required />
             </label>
             <button class="primary full" type="submit">Sign in</button>
+            <button type="button" class="link-button full" data-auth="forgot-password">
+              Forgot password?
+            </button>
             <p class="form-message"></p>
+          </form>
+          <form id="forgot-password-form" class="auth-form" hidden>
+            <h2>Forgot password?</h2>
+            <p>
+              Enter your username to request a password reset. Students should contact their school
+              teacher; teachers and admins should contact a programme administrator to verify their
+              identity and receive a temporary password.
+            </p>
+            <label>
+              Username
+              <input name="username" maxlength="64" autocomplete="username" required />
+            </label>
+            <button type="submit" class="primary full">Request password reset</button>
+            <button type="button" class="link-button full" data-auth="student-login">
+              Back to sign in
+            </button>
+            <p class="form-message" role="status"></p>
           </form>
           <form id="student-register-form" class="auth-form" hidden>
             <h2>Create student account</h2>

@@ -242,6 +242,85 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       }
       return json(res, 200, { ok: true });
     }
+    if (path === '/api/v2/password-help' && req.method === 'POST') {
+      const input = await body(req);
+      const username = text(input.username, 64, true).toLowerCase();
+      for (const [role, table] of [
+        ['student', 'students'],
+        ['teacher', 'teachers']
+      ]) {
+        const account = db
+          .prepare(`SELECT id FROM ${table} WHERE username=? AND is_disabled=0`)
+          .get(username);
+        if (account)
+          db.prepare(
+            'INSERT INTO password_requests VALUES (?, ?, ?, ?, NULL) ON CONFLICT(account_type, account_id) DO UPDATE SET created_at=CASE WHEN resolved_at IS NOT NULL THEN excluded.created_at ELSE created_at END, resolved_at=NULL'
+          ).run(id(), role, account.id, now());
+      }
+      return json(res, 200, { ok: true });
+    }
+    if (path === '/api/v2/teacher/password-requests' && req.method === 'GET') {
+      const user = teacher(req);
+      const requests = db
+        .prepare(
+          `SELECT r.id, r.account_type AS accountType, r.created_at AS createdAt,
+          s.full_name AS fullName, s.username, school.name AS schoolName
+         FROM password_requests r JOIN students s ON s.id=r.account_id
+         JOIN schools school ON school.id=s.school_id
+         WHERE r.account_type='student' AND r.resolved_at IS NULL${user.schoolId ? ' AND s.school_id=?' : ''}`
+        )
+        .all(...(user.schoolId ? [user.schoolId] : []));
+      if (!user.schoolId)
+        requests.push(
+          ...db
+            .prepare(
+              `SELECT r.id, r.account_type AS accountType, r.created_at AS createdAt,
+          t.full_name AS fullName, t.username, school.name AS schoolName
+         FROM password_requests r JOIN teachers t ON t.id=r.account_id
+         LEFT JOIN schools school ON school.id=t.school_id
+         WHERE r.account_type='teacher' AND r.resolved_at IS NULL`
+            )
+            .all()
+        );
+      return json(res, 200, { requests });
+    }
+    const recoveryRoute = /^\/api\/v2\/teacher\/password-requests\/([a-f0-9]{32})$/.exec(path);
+    if (recoveryRoute && req.method === 'POST') {
+      const user = teacher(req);
+      const request = db
+        .prepare('SELECT * FROM password_requests WHERE id=? AND resolved_at IS NULL')
+        .get(recoveryRoute[1]);
+      if (!request) fail(404, 'Reset request not found.');
+      const isStudent = request.account_type === 'student';
+      const table = isStudent ? 'students' : 'teachers';
+      const account = db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(request.account_id);
+      if (!account) fail(404, 'Account not found.');
+      if (isStudent) canManage(user, account.school_id);
+      else requireAdmin(user);
+      const input = await body(req);
+      try {
+        validateNewPassword(input.password);
+      } catch (error) {
+        fail(400, error.message);
+      }
+      db.exec('BEGIN');
+      try {
+        db.prepare(`UPDATE ${table} SET password_hash=? WHERE id=?`).run(
+          passwordHash(input.password),
+          account.id
+        );
+        db.prepare(
+          `DELETE FROM ${isStudent ? 'student_sessions' : 'sessions'} WHERE ${isStudent ? 'student_id' : 'teacher_id'}=?`
+        ).run(account.id);
+        db.prepare('UPDATE password_requests SET resolved_at=? WHERE id=?').run(now(), request.id);
+        audit('teacher', user.id, 'account.password.reset', request.account_type, account.id);
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      return json(res, 200, { ok: true });
+    }
     if (path === '/api/v2/student/home' && req.method === 'GET') {
       const user = student(req);
       const team = membership(user);

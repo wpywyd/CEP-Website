@@ -126,6 +126,11 @@ export function openStore(filename) {
       id TEXT PRIMARY KEY, actor_type TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL,
       target_type TEXT NOT NULL, target_id TEXT NOT NULL, details_json TEXT NOT NULL, created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS password_requests (
+      id TEXT PRIMARY KEY, account_type TEXT NOT NULL, account_id TEXT NOT NULL,
+      created_at TEXT NOT NULL, resolved_at TEXT,
+      UNIQUE(account_type, account_id)
+    );
   `);
   const ensureColumn = (table, column, definition) => {
     if (!db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name=?`).get(column))
