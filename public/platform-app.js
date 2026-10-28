@@ -231,7 +231,7 @@ async function loadStudent() {
   showStudentPanel('home');
   const { user, team, notifications } = state.student;
   $('#student-name').textContent = user.fullName;
-  $('#student-school').textContent = user.schoolName;
+  $('#student-school').textContent = (user.schoolName || '').replace(/\s+School$/i, '');
   $('#student-initials').textContent = initials(user.fullName);
   $('#student-greeting').textContent = `Welcome, ${user.fullName.split(' ')[0]}.`;
   const unread = notifications.filter((item) => !item.isRead).length;
@@ -401,7 +401,7 @@ async function loadStaff() {
   $('#staff-name').textContent = user.fullName || user.username;
   $('#staff-initials').textContent = initials(user.fullName || user.username);
   $('#staff-school').textContent = user.schoolId ? 'School teacher' : 'Programme admin';
-  $('#staff-school-name').textContent = user.schoolName || '';
+  $('#staff-school-name').textContent = (user.schoolName || '').replace(/\s+School$/i, '');
   $('#staff-school-name').hidden = !user.schoolId;
   $('#admin-nav').hidden = Boolean(user.schoolId);
   $('#review-count').textContent = reviews.length;
