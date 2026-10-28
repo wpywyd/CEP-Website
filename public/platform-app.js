@@ -592,6 +592,10 @@ document.addEventListener('click', async (event) => {
       )
       .join('');
     form.elements.schoolId.value = editStudent.dataset.school;
+    const canChangeSchool = !state.staff.user.schoolId;
+    form.elements.schoolId.disabled = !canChangeSchool;
+    form.elements.schoolId.closest('label').hidden = !canChangeSchool;
+    $('#student-school-transfer-note').hidden = !canChangeSchool;
     message($('.form-message', form));
     $('#student-details-dialog').showModal();
   }

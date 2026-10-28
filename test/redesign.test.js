@@ -179,7 +179,19 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     { schoolId: 'sg-ahmad-ibrahim-secondary-school', className: '2B' },
     schoolTeacher
   );
-  assert.equal(transferResult.status, 200);
+  assert.equal(transferResult.status, 403);
+  const transferAdmin = await loginTeacher('coordinator');
+  assert.equal(
+    (
+      await request(
+        `/api/v2/teacher/students/${transferHome.data.user.id}`,
+        'PATCH',
+        { schoolId: 'sg-ahmad-ibrahim-secondary-school', className: '2B' },
+        transferAdmin
+      )
+    ).status,
+    200
+  );
   assert.equal(
     (await request('/api/v2/student/home', 'GET', undefined, transferStudent)).status,
     401

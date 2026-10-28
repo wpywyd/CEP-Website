@@ -661,6 +661,8 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       }
       if (input.fullName || input.className || input.schoolId) {
         const schoolId = input.schoolId ? text(input.schoolId, 100, true) : target.school_id;
+        if (user.schoolId && schoolId !== target.school_id)
+          fail(403, 'Only programme administrators can change a student’s school.');
         if (!db.prepare('SELECT 1 FROM schools WHERE id=? AND is_active=1').get(schoolId))
           fail(400, 'Choose an active school.');
         if (schoolId !== target.school_id && membership({ id: target.id }))
