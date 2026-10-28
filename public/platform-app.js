@@ -401,6 +401,8 @@ async function loadStaff() {
   $('#staff-name').textContent = user.fullName || user.username;
   $('#staff-initials').textContent = initials(user.fullName || user.username);
   $('#staff-school').textContent = user.schoolId ? 'School teacher' : 'Programme admin';
+  $('#staff-school-name').textContent = user.schoolName || '';
+  $('#staff-school-name').hidden = !user.schoolId;
   $('#admin-nav').hidden = Boolean(user.schoolId);
   $('#review-count').textContent = reviews.length;
   $('#review-count').hidden = !reviews.length;
