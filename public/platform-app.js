@@ -231,6 +231,7 @@ async function loadStudent() {
   showStudentPanel('home');
   const { user, team, notifications } = state.student;
   $('#student-name').textContent = user.fullName;
+  $('#student-school').textContent = user.schoolName;
   $('#student-initials').textContent = initials(user.fullName);
   $('#student-greeting').textContent = `Welcome, ${user.fullName.split(' ')[0]}.`;
   const unread = notifications.filter((item) => !item.isRead).length;
