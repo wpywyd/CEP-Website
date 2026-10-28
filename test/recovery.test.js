@@ -66,6 +66,15 @@ test('password recovery hides account existence and limits staff to authorized r
     .requests;
   assert.equal(requests.length, 1);
   const resetPath = `/api/v2/teacher/password-requests/${requests[0].id}`;
+  assert.equal((await call(resetPath, 'DELETE', {}, outsider)).status, 403);
+  assert.equal((await call(resetPath, 'DELETE', {}, teacher)).status, 200);
+  assert.equal(
+    (await call('/api/v2/teacher/password-requests', 'GET', undefined, teacher)).data.requests
+      .length,
+    0
+  );
+  assert.equal((await call('/api/v2/student/home', 'GET', undefined, pupil.cookie)).status, 200);
+  await call('/api/v2/password-help', 'POST', { username: 'alex.tan' });
   assert.equal(
     (await call(resetPath, 'POST', { password: 'NewPassword42' }, outsider)).status,
     403

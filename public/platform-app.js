@@ -1076,7 +1076,7 @@ async function loadPasswordRequests() {
             (request) => `
       <article class="student-record"><div><h3>${escapeHtml(request.fullName || request.username)}</h3>
       <p>${escapeHtml(request.username)} · ${escapeHtml(request.accountType)} · ${escapeHtml(request.schoolName || 'Programme administrator')}</p></div>
-      <button class="secondary" data-recovery-reset="${request.id}">Reset password</button></article>`
+      <button class="secondary" data-recovery-reset="${request.id}">Reset password</button><button class="secondary" data-recovery-cancel="${request.id}">Cancel request</button></article>`
           )
           .join('')
       : '<p>No pending password requests.</p>';
@@ -1092,6 +1092,21 @@ document.addEventListener('visibilitychange', () => {
   if (state.staff && !$('#staff-shell').hidden && !document.hidden) loadPasswordRequests();
 });
 document.addEventListener('click', async (event) => {
+  const cancel = event.target.closest('[data-recovery-cancel]');
+  if (cancel) {
+    if (!confirm('Cancel this password reset request? The account password will stay unchanged.'))
+      return;
+    cancel.disabled = true;
+    try {
+      await api(`/api/v2/teacher/password-requests/${cancel.dataset.recoveryCancel}`, 'DELETE', {});
+      message('#recovery-message', 'Request cancelled. The account password is unchanged.');
+      await loadPasswordRequests();
+    } catch (error) {
+      message('#recovery-message', error.message, true);
+      cancel.disabled = false;
+    }
+    return;
+  }
   const button = event.target.closest('[data-recovery-reset]');
   if (
     !button ||

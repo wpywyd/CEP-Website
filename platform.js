@@ -285,7 +285,7 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       return json(res, 200, { requests });
     }
     const recoveryRoute = /^\/api\/v2\/teacher\/password-requests\/([a-f0-9]{32})$/.exec(path);
-    if (recoveryRoute && req.method === 'POST') {
+    if (recoveryRoute && ['POST', 'DELETE'].includes(req.method)) {
       const user = teacher(req);
       const request = db
         .prepare('SELECT * FROM password_requests WHERE id=? AND resolved_at IS NULL')
@@ -297,6 +297,17 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       if (!account) fail(404, 'Account not found.');
       if (isStudent) canManage(user, account.school_id);
       else requireAdmin(user);
+      if (req.method === 'DELETE') {
+        db.prepare('UPDATE password_requests SET resolved_at=? WHERE id=?').run(now(), request.id);
+        audit(
+          'teacher',
+          user.id,
+          'account.password.request.cancel',
+          request.account_type,
+          account.id
+        );
+        return json(res, 200, { ok: true });
+      }
       const input = await body(req);
       try {
         validateNewPassword(input.password);
