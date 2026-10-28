@@ -4,6 +4,7 @@ import {
   normaliseIdentity,
   displayName,
   passwordHash,
+  passwordMatches,
   validateNewPassword
 } from './store.js';
 
@@ -158,6 +159,89 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
     if (publicProjectRoute && req.method === 'GET')
       return json(res, 200, publishedProject(publicProjectRoute[1]));
 
+    if (
+      ['/api/v2/student/account', '/api/v2/teacher/account'].includes(path) &&
+      req.method === 'PATCH'
+    ) {
+      const isStudent = path === '/api/v2/student/account';
+      const user = isStudent ? student(req) : teacher(req);
+      const table = isStudent ? 'students' : 'teachers';
+      const existing = db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(user.id);
+      const input = await body(req);
+      const fullName = displayName(text(input.fullName, 120, true));
+      if (isStudent && input.schoolId !== undefined && input.schoolId !== user.schoolId)
+        fail(403, 'Students cannot change their school.');
+      const schoolId =
+        isStudent || !user.schoolId ? user.schoolId : text(input.schoolId, 100, true);
+      if (schoolId && !db.prepare('SELECT 1 FROM schools WHERE id=? AND is_active=1').get(schoolId))
+        fail(400, 'Choose an active school.');
+      let newHash = existing.password_hash;
+      if (input.newPassword) {
+        if (
+          typeof input.currentPassword !== 'string' ||
+          !passwordMatches(input.currentPassword, existing.password_hash)
+        )
+          fail(400, 'Current password is incorrect.');
+        try {
+          validateNewPassword(input.newPassword);
+        } catch (error) {
+          fail(400, error.message);
+        }
+        newHash = passwordHash(input.newPassword);
+      }
+      db.exec('BEGIN');
+      try {
+        if (isStudent) {
+          const className = displayName(text(input.className, 80, true));
+          const classKey = normaliseIdentity(className);
+          db.prepare('INSERT OR IGNORE INTO classes VALUES (?, ?, ?, ?)').run(
+            id(),
+            schoolId,
+            className,
+            classKey
+          );
+          const classId = db
+            .prepare('SELECT id FROM classes WHERE school_id=? AND name_key=?')
+            .get(schoolId, classKey).id;
+          if (
+            db
+              .prepare(
+                'SELECT 1 FROM students WHERE school_id=? AND class_id=? AND name_key=? AND id<>?'
+              )
+              .get(schoolId, classId, normaliseIdentity(fullName), user.id)
+          )
+            fail(409, 'A student with this full name already exists in your school and class.');
+          db.prepare(
+            'UPDATE students SET full_name=?, name_key=?, class_id=?, password_hash=? WHERE id=?'
+          ).run(fullName, normaliseIdentity(fullName), classId, newHash, user.id);
+        } else {
+          db.prepare(
+            'UPDATE teachers SET full_name=?, school_id=?, password_hash=? WHERE id=?'
+          ).run(fullName, schoolId, newHash, user.id);
+        }
+        if (input.newPassword || schoolId !== user.schoolId) {
+          const cookieName = isStudent ? 'cep_student' : 'cep_session';
+          const token = new RegExp(`(?:^|;\\s*)${cookieName}=([a-f0-9]{64})(?:;|$)`).exec(
+            req.headers.cookie || ''
+          )?.[1];
+          db.prepare(
+            `DELETE FROM ${isStudent ? 'student_sessions' : 'sessions'} WHERE ${isStudent ? 'student_id' : 'teacher_id'}=? AND token_hash<>?`
+          ).run(user.id, hash(token));
+        }
+        audit(
+          isStudent ? 'student' : 'teacher',
+          user.id,
+          'account.update',
+          isStudent ? 'student' : 'teacher',
+          user.id
+        );
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      return json(res, 200, { ok: true });
+    }
     if (path === '/api/v2/student/home' && req.method === 'GET') {
       const user = student(req);
       const team = membership(user);

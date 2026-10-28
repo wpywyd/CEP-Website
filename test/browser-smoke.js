@@ -45,6 +45,12 @@ try {
   await student.locator('#student-register-form [name="fullNameConfirmed"]').check();
   await student.locator('#student-register-form button[type="submit"]').click();
   await student.locator('#no-team').waitFor({ state: 'visible' });
+  await student.locator('[data-account-settings="student"]').click();
+  await student.locator('#account-settings-form [name="className"]').fill('Secondary 1B');
+  assert.equal(await student.locator('#account-school-field').isVisible(), false);
+  await student.locator('#account-settings-form button[type="submit"]').click();
+  await student.getByText('Account details saved.').waitFor();
+  await student.locator('#account-settings-dialog [data-close]').click();
   await student.locator('#create-team [name="name"]').fill('Pixel Pioneers');
   student.once('dialog', (dialog) => dialog.accept());
   await student.locator('#create-team button').click();

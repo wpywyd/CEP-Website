@@ -998,3 +998,48 @@ $('#student-details-form').addEventListener('submit', (event) => {
     await loadStaffStudents();
   });
 });
+
+$$('[data-account-settings]').forEach((button) =>
+  button.addEventListener('click', async () => {
+    const role = button.dataset.accountSettings;
+    const user = role === 'student' ? state.student.user : state.staff.user;
+    const form = $('#account-settings-form');
+    form.reset();
+    form.dataset.role = role;
+    form.elements.fullName.value = user.fullName || user.username;
+    form.elements.className.value = user.className || '';
+    form.elements.className.required = role === 'student';
+    form.elements.className.disabled = role !== 'student';
+    $('#account-class-field').hidden = role !== 'student';
+    const canEditSchool = role === 'teacher' && Boolean(user.schoolId);
+    $('#account-school-field').hidden = !canEditSchool;
+    form.elements.schoolId.disabled = !canEditSchool;
+    if (canEditSchool) {
+      const { schools } = await api('/api/registration');
+      form.elements.schoolId.innerHTML = schools
+        .map(
+          (school) => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)}</option>`
+        )
+        .join('');
+      form.elements.schoolId.value = user.schoolId;
+    }
+    message($('.form-message', form));
+    $('#account-settings-dialog').showModal();
+  })
+);
+$('#account-settings-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  submit(form, async () => {
+    const input = Object.fromEntries(new FormData(form));
+    if (input.newPassword !== input.confirmPassword) throw new Error('New passwords do not match.');
+    delete input.confirmPassword;
+    await api(`/api/v2/${form.dataset.role}/account`, 'PATCH', input);
+    if (form.dataset.role === 'student') await loadStudent();
+    else await loadStaff();
+    form.elements.currentPassword.value = '';
+    form.elements.newPassword.value = '';
+    form.elements.confirmPassword.value = '';
+    message($('.form-message', form), 'Account details saved.');
+  });
+});

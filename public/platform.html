@@ -117,6 +117,10 @@
               <span>Notifications</span>
               <b id="notification-count" hidden></b>
             </button>
+            <button data-account-settings="student">
+              ⚙
+              <span>Account settings</span>
+            </button>
           </nav>
           <div class="user-chip">
             <span id="student-initials"></span>
@@ -275,6 +279,10 @@
             <button data-staff-panel="students">
               ♙
               <span>Students</span>
+            </button>
+            <button data-account-settings="teacher">
+              ⚙
+              <span>Account settings</span>
             </button>
             <button data-staff-panel="admin" id="admin-nav" hidden>
               ⌂
@@ -541,6 +549,40 @@
           </form>
         </section>
       </div>
+    </dialog>
+    <dialog id="account-settings-dialog">
+      <button class="modal-close" data-close aria-label="Close">×</button>
+      <form id="account-settings-form" class="editor-form">
+        <h2>Account settings</h2>
+        <label>
+          Full name
+          <input name="fullName" maxlength="120" required />
+        </label>
+        <label id="account-class-field">
+          Class
+          <input name="className" maxlength="80" />
+        </label>
+        <label id="account-school-field">
+          School
+          <select name="schoolId"></select>
+        </label>
+        <h3>Change password</h3>
+        <p>Leave the password fields empty to keep your password.</p>
+        <label>
+          Current password
+          <input name="currentPassword" type="password" autocomplete="current-password" />
+        </label>
+        <label>
+          New password
+          <input name="newPassword" type="password" autocomplete="new-password" />
+        </label>
+        <label>
+          Confirm new password
+          <input name="confirmPassword" type="password" autocomplete="new-password" />
+        </label>
+        <button type="submit" class="primary">Save changes</button>
+        <p class="form-message" role="status"></p>
+      </form>
     </dialog>
     <dialog id="student-details-dialog">
       <button class="modal-close" data-close aria-label="Close">×</button>

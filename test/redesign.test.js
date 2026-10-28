@@ -99,6 +99,76 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
     return saved.data.project.id;
   }
   const first = await register('Alex Tan', 'alex.tan');
+  assert.equal(
+    (
+      await request(
+        '/api/v2/student/account',
+        'PATCH',
+        {
+          fullName: 'Alex Tan',
+          className: 'Secondary 1B'
+        },
+        first
+      )
+    ).status,
+    200
+  );
+  assert.equal(
+    (
+      await request(
+        '/api/v2/student/account',
+        'PATCH',
+        {
+          fullName: 'Alex Tan',
+          className: 'Secondary 1B',
+          schoolId: 'sg-ahmad-ibrahim-secondary-school'
+        },
+        first
+      )
+    ).status,
+    403
+  );
+  assert.equal(
+    (
+      await request(
+        '/api/v2/student/account',
+        'PATCH',
+        {
+          fullName: 'Alex Tan',
+          className: 'Secondary 1B',
+          currentPassword: 'wrong',
+          newPassword: 'ChangedPass42'
+        },
+        first
+      )
+    ).status,
+    400
+  );
+  assert.equal(
+    (
+      await request(
+        '/api/v2/student/account',
+        'PATCH',
+        {
+          fullName: 'Alex Tan',
+          className: 'Secondary 1B',
+          currentPassword: password,
+          newPassword: 'ChangedPass42'
+        },
+        first
+      )
+    ).status,
+    200
+  );
+  assert.equal(
+    (
+      await request('/api/students/login', 'POST', {
+        username: 'alex.tan',
+        password: 'ChangedPass42'
+      })
+    ).status,
+    200
+  );
   const second = await register('Jamie Lee', 'jamie.lee');
   const transferStudent = await register('Transfer Student', 'transfer.student');
   const transferHome = await request('/api/v2/student/home', 'GET', undefined, transferStudent);
@@ -200,4 +270,23 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
   const showcase = await request('/api/v2/showcase');
   assert.equal(showcase.data.projects.length, 2);
   assert.equal(showcase.data.round.totalVotes, 1);
+  assert.equal(
+    (
+      await request(
+        '/api/v2/teacher/account',
+        'PATCH',
+        {
+          fullName: 'Teacher Tan',
+          schoolId: 'sg-ahmad-ibrahim-secondary-school',
+          currentPassword: password,
+          newPassword: 'TeacherPass42'
+        },
+        teacher
+      )
+    ).status,
+    200
+  );
+  const updatedTeacher = await request('/api/v2/teacher/dashboard', 'GET', undefined, teacher);
+  assert.equal(updatedTeacher.data.user.fullName, 'Teacher Tan');
+  assert.equal(updatedTeacher.data.user.schoolId, 'sg-ahmad-ibrahim-secondary-school');
 });
