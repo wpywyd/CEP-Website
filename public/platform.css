@@ -451,6 +451,10 @@ a {
 .ballot-details button {
   width: 100%;
 }
+.leaderboard-details {
+  margin-top: 12px;
+  padding: 9px 14px;
+}
 .sticky-vote[hidden] {
   display: none;
 }

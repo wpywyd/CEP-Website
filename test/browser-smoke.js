@@ -235,6 +235,16 @@ try {
   assert.equal(await publicPage.locator('#project-detail h2').innerText(), 'Ocean Rescue');
   await publicPage.locator('#project-dialog [data-close]').click();
   assert.equal(await publicPage.locator('.ballot-card input').isChecked(), true);
+  for (const width of [1280, 390]) {
+    await publicPage.setViewportSize({ width, height: 844 });
+    await publicPage.goto(`${origin}/results`);
+    await publicPage.locator('#leaderboard').getByRole('button', { name: 'View details' }).click();
+    await publicPage.locator('#project-dialog').waitFor({ state: 'visible' });
+    assert.equal(await publicPage.locator('#project-detail h2').innerText(), 'Ocean Rescue');
+    assert.equal(await publicPage.locator('#project-detail video').isVisible(), true);
+    await publicPage.locator('#project-dialog [data-close]').click();
+    assert.equal(await publicPage.locator('#leaderboard').isVisible(), true);
+  }
 
   assert.deepEqual(errors, []);
   assert.deepEqual(badResponses, []);

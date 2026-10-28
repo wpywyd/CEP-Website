@@ -532,7 +532,7 @@ function loadResults() {
       .map((project, index) => {
         if (project.votes !== lastVotes) rank = index + 1;
         lastVotes = project.votes;
-        return `<article class="${rank === 1 ? 'winner' : ''}"><span class="rank">${rank}</span>${coverMarkup(project.coverImage, 'leader-image')}<div><span class="category">${escapeHtml(project.category)}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)}</p></div><strong>${project.votes}<small> votes</small></strong></article>`;
+        return `<article class="${rank === 1 ? 'winner' : ''}"><span class="rank">${rank}</span>${coverMarkup(project.coverImage, 'leader-image')}<div><span class="category">${escapeHtml(project.category)}</span><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.teamName)} · ${escapeHtml(project.schoolName)}</p><button type="button" class="secondary leaderboard-details" data-project="${project.id}">View details</button></div><strong>${project.votes}<small> votes</small></strong></article>`;
       })
       .join('') ||
     '<div class="empty-projects">Results will appear when published projects receive votes.</div>';
