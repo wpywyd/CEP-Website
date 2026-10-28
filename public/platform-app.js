@@ -415,6 +415,7 @@ async function loadStaff() {
         )
         .join('')
     : '<p class="empty-copy">The review queue is clear.</p>';
+  await loadPasswordRequests();
   return true;
 }
 async function openReview(revisionId) {
@@ -1065,6 +1066,10 @@ $('#forgot-password-form').addEventListener('submit', (event) => {
 async function loadPasswordRequests() {
   try {
     const { requests } = await api('/api/v2/teacher/password-requests');
+    const badge = $('#password-request-count');
+    badge.textContent = requests.length;
+    badge.hidden = requests.length === 0;
+    badge.setAttribute('aria-label', `${requests.length} pending password requests`);
     $('#password-request-list').innerHTML = requests.length
       ? requests
           .map(
@@ -1080,6 +1085,12 @@ async function loadPasswordRequests() {
   }
 }
 $('#refresh-recovery').addEventListener('click', loadPasswordRequests);
+setInterval(() => {
+  if (state.staff && !$('#staff-shell').hidden && !document.hidden) loadPasswordRequests();
+}, 30000);
+document.addEventListener('visibilitychange', () => {
+  if (state.staff && !$('#staff-shell').hidden && !document.hidden) loadPasswordRequests();
+});
 document.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-recovery-reset]');
   if (

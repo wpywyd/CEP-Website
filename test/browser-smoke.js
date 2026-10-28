@@ -143,11 +143,17 @@ try {
   const teacherContext = await browser.newContext();
   const teacher = await teacherContext.newPage();
   inspect(teacher);
+  await student.context().request.post(`${origin}/api/v2/password-help`, {
+    headers: { Origin: origin, 'X-CEP-Request': '1' },
+    data: { username: 'alex.tan' }
+  });
   const teacherResponse = await teacher.goto(`${origin}/teacher`);
   assert.equal(teacherResponse.headers()['x-robots-tag'], 'noindex, nofollow');
   await teacher.locator('#student-login-form [name="username"]').fill('school.teacher');
   await teacher.locator('#student-login-form [name="password"]').fill(password);
   await teacher.locator('#student-login-form button[type="submit"]').click();
+  await teacher.locator('#password-request-count:not([hidden])').waitFor();
+  assert.equal(await teacher.locator('#password-request-count').innerText(), '1');
   await teacher.locator('[data-review]').click();
   await teacher.locator('#review-form').waitFor({ state: 'visible' });
   await teacher.waitForFunction(() => {
