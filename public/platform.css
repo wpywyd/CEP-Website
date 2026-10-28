@@ -256,6 +256,15 @@ a {
 .video-preview {
   margin-top: 10px;
 }
+#school-project-detail > .project-video {
+  display: block;
+  margin: 20px 0;
+}
+#school-project-detail > a.secondary {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
 .modal-copy .project-video,
 .review-preview .project-video {
   margin: 20px 0;
