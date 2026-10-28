@@ -242,6 +242,19 @@ async function loadStudent() {
   $('#no-team').hidden = Boolean(team);
   $('#team-dashboard').hidden = !team;
   if (team) renderTeam(team);
+  $('#teacher-comments-list').innerHTML = state.student.teacherComments.length
+    ? state.student.teacherComments
+        .map(
+          (comment) => `
+      <article class="teacher-comment">
+        <strong>${escapeHtml(comment.teacherName)}</strong>
+        ${comment.requestsChanges ? '<span class="status-pill">Changes requested</span>' : ''}
+        <p>${escapeHtml(comment.message)}</p>
+        <small>${new Date(comment.createdAt).toLocaleString()}</small>
+      </article>`
+        )
+        .join('')
+    : '<p>Your teacher’s comments will appear here.</p>';
   renderNotifications(notifications);
   fillProjectEditor(team?.project);
   return true;

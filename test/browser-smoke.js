@@ -190,6 +190,18 @@ try {
     .fill('Explain the learning goals in more detail.');
   await teacher.locator('#school-project-feedback button[value="changes"]').click();
   await teacher.getByText('Changes requested. The team has been notified.').waitFor();
+  await student.goto(`${origin}/student`);
+  await student
+    .locator('#teacher-comments-list')
+    .getByText('Explain the learning goals in more detail.')
+    .waitFor();
+  assert.equal(
+    await student
+      .locator('#teacher-comments-list')
+      .getByText('Changes requested', { exact: true })
+      .isVisible(),
+    true
+  );
   await teacher.locator('#school-project-dialog [data-close]').click();
   await teacher
     .locator('#school-project-list')

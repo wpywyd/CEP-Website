@@ -343,6 +343,17 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         categories: db
           .prepare('SELECT id, name FROM categories WHERE is_active=1 ORDER BY sort_order, name')
           .all(),
+        teacherComments: team
+          ? db
+              .prepare(
+                `SELECT c.id, c.message, c.requests_changes AS requestsChanges, c.created_at AS createdAt,
+           coalesce(nullif(t.full_name,''),t.username) AS teacherName, p.id AS projectId
+           FROM project_comments c JOIN teachers t ON t.id=c.teacher_id
+           JOIN showcase_projects p ON p.id=c.project_id
+           WHERE p.team_id=? AND p.is_archived=0 ORDER BY c.created_at DESC, c.rowid DESC`
+              )
+              .all(team.teamId)
+          : [],
         notifications: db
           .prepare(
             'SELECT id, kind, message, is_read AS isRead, created_at AS createdAt FROM notifications WHERE student_id=? ORDER BY created_at DESC LIMIT 30'
@@ -783,6 +794,15 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
         return json(res, 200, { ok: true });
       }
       const state = decision === 'approve' ? 'published' : 'changes_requested';
+      if (feedback)
+        db.prepare('INSERT INTO project_comments VALUES (?, ?, ?, ?, ?, ?)').run(
+          id(),
+          revision.projectId,
+          user.id,
+          feedback,
+          Number(decision === 'changes'),
+          now()
+        );
       db.prepare(
         'UPDATE project_revisions SET state=?, feedback=?, reviewed_at=?, reviewed_by=? WHERE id=?'
       ).run(state, feedback, now(), user.id, revision.id);

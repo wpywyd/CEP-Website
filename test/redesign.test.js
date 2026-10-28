@@ -301,7 +301,17 @@ test('redesigned team, review, selected ballot and final vote workflow', async (
   );
   const afterFeedback = await request(projectPath, 'GET', undefined, teacher);
   assert.equal(afterFeedback.data.project.state, 'changes_requested');
-  assert.equal(afterFeedback.data.comments.length, 1);
+  assert.equal(afterFeedback.data.comments.length, 2);
+  const studentFeedback = (await request('/api/v2/student/home', 'GET', undefined, first)).data
+    .teacherComments;
+  assert.equal(
+    studentFeedback.some((comment) => comment.message === 'Please clarify the instructions.'),
+    true
+  );
+  assert.equal(
+    studentFeedback.some((comment) => comment.projectId === secondProject),
+    false
+  );
   assert.equal((await request(`/api/v2/showcase/${firstProject}`)).data.state, 'published');
   assert.equal(
     (
