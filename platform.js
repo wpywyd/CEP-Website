@@ -782,6 +782,11 @@ export function createPlatform({ db, fail, text, body, json, teacher, student, c
       requireAdmin(user);
       const input = await body(req);
       const username = text(input.username, 64, true).toLowerCase();
+      if (
+        db.prepare('SELECT 1 FROM students WHERE username=?').get(username) ||
+        db.prepare('SELECT 1 FROM teachers WHERE username=?').get(username)
+      )
+        fail(409, 'That username is already taken. Choose another username.');
       if (!/^[a-z0-9._-]{3,64}$/.test(username))
         fail(400, 'Username must be 3–64 letters, numbers, dots, underscores or hyphens.');
       try {

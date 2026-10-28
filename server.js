@@ -579,7 +579,10 @@ export function createApp({
             409,
             'An account is already registered with these school, class and full-name details. Sign in or contact your teacher.'
           );
-        if (db.prepare('SELECT id FROM students WHERE username=?').get(username))
+        if (
+          db.prepare('SELECT id FROM students WHERE username=?').get(username) ||
+          db.prepare('SELECT id FROM teachers WHERE username=?').get(username)
+        )
           fail(409, 'That username is already taken. Choose another username.');
         const id = randomBytes(16).toString('hex');
         try {
@@ -607,6 +610,39 @@ export function createApp({
         }
         startStudentSession(res, id);
         return json(res, 201, { username, fullName, schoolId, className });
+      }
+      if (path === '/api/signin' && req.method === 'POST') {
+        const input = await body(req);
+        const username = text(input.username, 64, true).toLowerCase();
+        const password = passwordValue(input.password, false);
+        limit(`signin:${ip}`, 300, 15 * 60_000);
+        limit(`signin-account:${hash(username)}`, 15, 15 * 60_000);
+        const staff = db.prepare('SELECT * FROM teachers WHERE username=?').get(username);
+        const pupil = db.prepare('SELECT * FROM students WHERE username=?').get(username);
+        const staffMatch = passwordMatches(password, staff?.password_hash || dummyHash);
+        const studentMatch = passwordMatches(password, pupil?.password_hash || dummyHash);
+        if (staffMatch && !staff.is_disabled) {
+          const token = randomBytes(32).toString('hex');
+          db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(
+            hash(token),
+            staff.id,
+            Date.now() + 8 * 60 * 60_000
+          );
+          res.setHeader('Set-Cookie', [
+            `cep_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookies ? '; Secure' : ''}`,
+            `cep_student=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookies ? '; Secure' : ''}`
+          ]);
+          return json(res, 200, { role: staff.school_id ? 'teacher' : 'admin' });
+        }
+        if (studentMatch && !pupil.is_disabled) {
+          startStudentSession(res, pupil.id);
+          res.setHeader('Set-Cookie', [
+            res.getHeader('Set-Cookie'),
+            `cep_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookies ? '; Secure' : ''}`
+          ]);
+          return json(res, 200, { role: 'student' });
+        }
+        fail(401, 'Incorrect username or password.');
       }
       if (path === '/api/students/login' && req.method === 'POST') {
         const input = await body(req);

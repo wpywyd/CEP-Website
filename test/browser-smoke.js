@@ -137,9 +137,9 @@ try {
   inspect(teacher);
   const teacherResponse = await teacher.goto(`${origin}/teacher`);
   assert.equal(teacherResponse.headers()['x-robots-tag'], 'noindex, nofollow');
-  await teacher.locator('#staff-login-form [name="username"]').fill('school.teacher');
-  await teacher.locator('#staff-login-form [name="password"]').fill(password);
-  await teacher.locator('#staff-login-form button[type="submit"]').click();
+  await teacher.locator('#student-login-form [name="username"]').fill('school.teacher');
+  await teacher.locator('#student-login-form [name="password"]').fill(password);
+  await teacher.locator('#student-login-form button[type="submit"]').click();
   await teacher.locator('[data-review]').click();
   await teacher.locator('#review-form').waitFor({ state: 'visible' });
   await teacher.waitForFunction(() => {
@@ -190,9 +190,9 @@ try {
   const admin = await adminContext.newPage();
   inspect(admin);
   await admin.goto(`${origin}/admin`);
-  await admin.locator('#staff-login-form [name="username"]').fill('programme.admin');
-  await admin.locator('#staff-login-form [name="password"]').fill(password);
-  await admin.locator('#staff-login-form button[type="submit"]').click();
+  await admin.locator('#student-login-form [name="username"]').fill('programme.admin');
+  await admin.locator('#student-login-form [name="password"]').fill(password);
+  await admin.locator('#student-login-form button[type="submit"]').click();
   await admin.locator('#admin-stats').waitFor({ state: 'visible' });
   const [adminHomeResponse] = await Promise.all([
     admin.waitForResponse(
@@ -244,6 +244,16 @@ try {
     }
   });
   assert.equal(voter.status(), 201);
+  await publicPage.context().request.post(`${origin}/api/students/logout`, {
+    headers: { Origin: origin, 'X-CEP-Request': '1' },
+    data: {}
+  });
+  await publicPage.goto(`${origin}/`);
+  await publicPage.locator('#open-signin').click();
+  await publicPage.locator('#student-login-form [name="username"]').fill('jamie.lee');
+  await publicPage.locator('#student-login-form [name="password"]').fill(password);
+  await publicPage.locator('#student-login-form button[type="submit"]').click();
+  await publicPage.locator('#student-shell').waitFor({ state: 'visible' });
   await publicPage.goto(`${origin}/vote`);
   await publicPage.locator('.ballot-card input').check();
   await publicPage.getByRole('button', { name: 'View details', exact: true }).click();

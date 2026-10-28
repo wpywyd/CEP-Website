@@ -386,7 +386,7 @@ async function loadStaff() {
     state.staff = await api('/api/v2/teacher/dashboard');
   } catch (error) {
     if (error.status === 401) {
-      openSignin('staff-login');
+      openSignin('student-login');
       return false;
     }
     throw error;
@@ -720,10 +720,23 @@ $$('[data-auth]').forEach((button) =>
 $('#student-login-form').addEventListener('submit', (event) => {
   event.preventDefault();
   submit(event.currentTarget, async () => {
-    await api('/api/students/login', 'POST', Object.fromEntries(new FormData(event.currentTarget)));
+    const result = await api(
+      '/api/signin',
+      'POST',
+      Object.fromEntries(new FormData(event.currentTarget))
+    );
     $('#signin-dialog').close();
-    history.pushState({}, '', '/student');
-    await loadStudent();
+    history.pushState(
+      {},
+      '',
+      `/${result.role === 'student' ? 'student' : result.role === 'admin' ? 'admin' : 'teacher'}`
+    );
+    if (result.role === 'student') await loadStudent();
+    else {
+      await loadStaff();
+      if (result.role === 'admin') showStaffPanel('admin');
+    }
+    $('#student-login-form').reset();
   });
 });
 $('#student-register-form').addEventListener('submit', (event) => {
@@ -737,17 +750,6 @@ $('#student-register-form').addEventListener('submit', (event) => {
     $('#signin-dialog').close();
     history.pushState({}, '', '/student');
     await loadStudent();
-  });
-});
-$('#staff-login-form').addEventListener('submit', (event) => {
-  event.preventDefault();
-  submit(event.currentTarget, async () => {
-    await api('/api/login', 'POST', Object.fromEntries(new FormData(event.currentTarget)));
-    $('#signin-dialog').close();
-    await loadStaff();
-    const isAdmin = !state.staff.user.schoolId;
-    history.pushState({}, '', isAdmin ? '/admin' : '/teacher');
-    if (isAdmin) showStaffPanel('admin');
   });
 });
 $('#student-signout').addEventListener('click', async () => {
