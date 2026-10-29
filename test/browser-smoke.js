@@ -42,7 +42,7 @@ try {
     .locator('#forgot-password-form .form-message')
     .getByText('If this username belongs', { exact: false })
     .waitFor();
-  await student.getByRole('button', { name: 'Back to login', exact: true }).click();
+  await student.getByRole('button', { name: 'Back to sign in', exact: true }).click();
   await student.locator('[data-auth="student-register"]').click();
   await student.locator('#student-register-form [name="schoolId"]').selectOption(schoolId);
   await student.locator('#student-register-form [name="className"]').fill('Secondary 1A');

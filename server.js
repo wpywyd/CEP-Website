@@ -146,7 +146,7 @@ export function createApp({
         }
       : signedInStudent
         ? { destination: '/student', label: 'Dashboard' }
-        : { destination: '', label: 'Login' };
+        : { destination: '', label: 'Sign in' };
     return content
       .toString()
       .replace('{{ACCOUNT_DESTINATION}}', account.destination)
